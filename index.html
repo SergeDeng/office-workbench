@@ -1,0 +1,1719 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<meta name="theme-color" content="#0d9488">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="办公工作台">
+<title>个人办公工作台</title>
+<style>
+/* ===== Reset & Variables ===== */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --primary:#0d9488;--primary-light:#14b8a6;--primary-dark:#0f766e;--primary-bg:#f0fdfa;
+  --secondary:#2563eb;--secondary-light:#3b82f6;--secondary-bg:#eff6ff;
+  --bg:#f8fafc;--card:#ffffff;--text:#1e293b;--text-muted:#64748b;--text-light:#94a3b8;
+  --border:#e2e8f0;--border-light:#f1f5f9;
+  --danger:#ef4444;--danger-bg:#fef2f2;--warning:#f59e0b;--warning-bg:#fffbeb;
+  --success:#22c55e;--success-bg:#f0fdf4;
+  --radius:10px;--radius-sm:6px;
+  --shadow:0 1px 3px rgba(0,0,0,.05),0 1px 2px rgba(0,0,0,.03);
+  --shadow-md:0 4px 12px rgba(0,0,0,.06),0 2px 4px rgba(0,0,0,.03);
+  --shadow-lg:0 8px 24px rgba(0,0,0,.08),0 4px 8px rgba(0,0,0,.04);
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.6;-webkit-font-smoothing:antialiased}
+input,select,textarea,button{font-family:inherit}
+a{color:var(--primary);text-decoration:none}
+
+/* ===== Layout ===== */
+.app{display:flex;flex-direction:column;min-height:100vh}
+
+/* ===== Header ===== */
+.header{position:relative;overflow:hidden;border-bottom:1px solid var(--border);background:var(--card)}
+.header-banner{position:absolute;inset:0;z-index:0}
+.header-content{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;padding:14px 24px;flex-wrap:wrap;gap:10px}
+.header-title{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:700;color:var(--text)}
+.header-title svg{flex-shrink:0}
+.header-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ===== Buttons ===== */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--card);color:var(--text-muted);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn:hover{border-color:var(--primary);color:var(--primary);box-shadow:var(--shadow)}
+.btn-primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-dark);border-color:var(--primary-dark);color:#fff}
+.btn-danger{color:var(--danger);border-color:var(--border)}
+.btn-danger:hover{background:var(--danger-bg);border-color:var(--danger);color:var(--danger)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-icon{padding:6px;width:32px;height:32px;justify-content:center}
+.btn:active{transform:scale(.97)}
+
+/* ===== Export Reminder ===== */
+.export-reminder{display:none;background:var(--warning-bg);border-bottom:1px solid #fde68a;padding:10px 24px;font-size:13px;color:#92400e;align-items:center;gap:8px}
+.export-reminder.show{display:flex}
+.export-reminder .close{margin-left:auto;cursor:pointer;color:#92400e;background:none;border:none;font-size:16px;padding:4px}
+
+/* ===== Top Alert Section ===== */
+.top-alert{padding:16px 24px;background:var(--card);border-bottom:1px solid var(--border)}
+.top-alert-header{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;color:var(--text);margin-bottom:12px}
+.top-alert-header .alert-icon{color:var(--danger)}
+.top-alert-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.alert-card{border:1px solid var(--border);border-radius:var(--radius);padding:14px;background:var(--card)}
+.alert-card.overdue{border-color:#fca5a5;background:var(--danger-bg)}
+.alert-card.stuck{border-color:#fcd34d;background:var(--warning-bg)}
+.alert-card-title{font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.alert-card-title .count{background:var(--danger);color:#fff;font-size:11px;padding:1px 7px;border-radius:10px}
+.alert-card.stuck .alert-card-title .count{background:var(--warning)}
+.alert-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border-light)}
+.alert-item:last-child{border-bottom:none}
+.alert-item-name{flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.alert-item-meta{font-size:11px;color:var(--text-light);white-space:nowrap}
+.alert-empty{text-align:center;padding:12px;font-size:13px;color:var(--text-light)}
+.alert-empty svg{margin-bottom:4px}
+
+/* ===== Main Layout ===== */
+.main{display:flex;flex:1;overflow:hidden}
+
+/* ===== Sidebar ===== */
+.sidebar{width:220px;background:var(--card);border-right:1px solid var(--border);padding:16px 0;display:flex;flex-direction:column;flex-shrink:0}
+.sidebar-logo{display:flex;align-items:center;gap:8px;padding:0 20px 16px;font-size:14px;font-weight:600;color:var(--primary)}
+.sidebar-nav{flex:1;padding:0 12px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);cursor:pointer;color:var(--text-muted);font-size:14px;font-weight:500;transition:all .15s;margin-bottom:2px}
+.nav-item:hover{background:var(--border-light);color:var(--text)}
+.nav-item.active{background:var(--primary-bg);color:var(--primary)}
+.nav-item svg{flex-shrink:0}
+.nav-item .badge{margin-left:auto;background:var(--border);color:var(--text-muted);font-size:11px;padding:1px 7px;border-radius:10px;font-weight:600}
+.nav-item.active .badge{background:var(--primary);color:#fff}
+.sidebar-footer{padding:12px 20px;border-top:1px solid var(--border-light);font-size:12px;color:var(--text-light)}
+
+/* ===== Content ===== */
+.content{flex:1;overflow-y:auto;padding:24px}
+.content-section{display:none}
+.content-section.active{display:block}
+.section-title{font-size:18px;font-weight:700;color:var(--text);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+
+/* ===== Forms ===== */
+.form-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px;box-shadow:var(--shadow)}
+.form-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.form-field{display:flex;flex-direction:column;gap:4px}
+.form-field.flex-1{flex:1;min-width:160px}
+.form-field label{font-size:12px;color:var(--text-muted);font-weight:500}
+.input,.select,.textarea{padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;color:var(--text);background:var(--card);transition:border-color .15s;width:100%}
+.input:focus,.select:focus,.textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(13,148,136,.1)}
+.textarea{resize:vertical;min-height:60px}
+
+/* ===== Todo List ===== */
+.todo-group{margin-bottom:20px}
+.todo-group-header{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border-light)}
+.todo-group-header .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.todo-group-header .count{color:var(--text-light);font-weight:400}
+.todo-item{display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px;padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px;background:var(--card);transition:all .15s}
+.todo-item:hover{box-shadow:var(--shadow)}
+.todo-item.overdue{border-color:#fca5a5;background:var(--danger-bg)}
+.todo-item.done{opacity:.55}
+.todo-item.done .todo-title{text-decoration:line-through;color:var(--text-muted)}
+.todo-checkbox{width:20px;height:20px;border:2px solid var(--border);border-radius:5px;cursor:pointer;flex-shrink:0;margin-top:1px;transition:all .15s;display:flex;align-items:center;justify-content:center}
+.todo-checkbox:hover{border-color:var(--primary)}
+.todo-checkbox.checked{background:var(--success);border-color:var(--success)}
+.todo-checkbox.checked svg{display:block}
+.todo-checkbox svg{display:none}
+.todo-body{flex:1;min-width:0}
+.todo-title{font-size:14px;font-weight:500;color:var(--text);word-break:break-word}
+.todo-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px}
+.todo-actions{display:flex;gap:4px;flex-shrink:0}
+.priority-badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.priority-P0{background:#fee2e2;color:#dc2626}
+.priority-P1{background:#ffedd5;color:#ea580c}
+.priority-P2{background:#dbeafe;color:#2563eb}
+.priority-P3{background:#f1f5f9;color:#64748b}
+.project-tag{font-size:11px;padding:2px 8px;border-radius:10px;background:var(--primary-bg);color:var(--primary-dark);white-space:nowrap}
+.deadline-tag{font-size:11px;color:var(--text-light);white-space:nowrap}
+.deadline-tag.overdue{color:var(--danger);font-weight:600}
+.deferred-tag{font-size:11px;color:var(--warning);font-weight:500}
+
+/* ===== Todo Filter Tabs ===== */
+.todo-filter-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.todo-filter-tab{padding:5px 14px;border-radius:18px;font-size:12px;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--text-muted);transition:all .15s;white-space:nowrap}
+.todo-filter-tab:hover{border-color:var(--primary);color:var(--primary)}
+.todo-filter-tab.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.todo-filter-tab .tab-count{font-size:11px;margin-left:2px;opacity:.8}
+
+/* ===== Project Filter Bar ===== */
+.project-filter-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.project-filter-label{font-size:12px;color:var(--text-muted);font-weight:500;white-space:nowrap}
+.project-filter-chip{padding:4px 12px;border-radius:14px;font-size:12px;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--text-muted);transition:all .15s;white-space:nowrap}
+.project-filter-chip:hover{border-color:var(--primary);color:var(--primary)}
+.project-filter-chip.active{background:var(--primary-bg);border-color:var(--primary);color:var(--primary-dark);font-weight:600}
+.project-filter-chip .chip-count{font-size:11px;margin-left:2px;opacity:.7}
+
+/* ===== Todo Item (Redesigned) ===== */
+.todo-item{display:flex;flex-wrap:wrap;align-items:flex-start;gap:0;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px;background:var(--card);transition:all .15s;position:relative;overflow:hidden}
+.todo-item:hover{box-shadow:var(--shadow)}
+.todo-item.overdue{border-color:#fca5a5;background:var(--danger-bg)}
+.todo-item.done{opacity:.55}
+.todo-item.done .todo-title{text-decoration:line-through;color:var(--text-muted)}
+.todo-priority-bar{position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
+.todo-item-main{display:flex;align-items:flex-start;gap:10px;flex:1;min-width:0;padding-left:8px}
+.todo-checkbox{width:18px;height:18px;border:2px solid var(--border);border-radius:5px;cursor:pointer;flex-shrink:0;margin-top:2px;transition:all .15s;display:flex;align-items:center;justify-content:center}
+.todo-checkbox:hover{border-color:var(--primary)}
+.todo-checkbox.checked{background:var(--success);border-color:var(--success)}
+.todo-checkbox.checked svg{display:block}
+.todo-checkbox svg{display:none}
+.todo-body{flex:1;min-width:0}
+.todo-title{font-size:14px;font-weight:500;color:var(--text);word-break:break-word;line-height:1.4}
+.todo-tag-row{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:5px}
+.todo-tag-row .priority-badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.todo-tag-row .project-tag-outline{font-size:11px;padding:1px 7px;border-radius:10px;white-space:nowrap;border:1px solid var(--success);color:var(--success);background:#f0fdf4}
+.todo-tag-row .overdue-tag{font-size:11px;padding:2px 8px;border-radius:10px;white-space:nowrap;background:#fee2e2;color:#dc2626;font-weight:600}
+.todo-tag-row .deferred-tag-pill{font-size:11px;padding:2px 8px;border-radius:10px;white-space:nowrap;background:#fef3c7;color:#92400e;font-weight:500}
+.todo-note-row{font-size:11px;color:var(--text-light);margin-top:4px;display:flex;align-items:center;gap:4px}
+.todo-note-row .note-sep{color:var(--border)}
+.todo-actions-row{display:flex;gap:4px;flex-shrink:0;align-items:flex-start;padding-top:2px}
+.todo-actions-row .btn{padding:4px 6px;min-height:28px}
+.todo-expand-btn{cursor:pointer;color:var(--text-light);background:none;border:none;padding:4px;border-radius:4px;transition:all .15s;display:flex;align-items:center;justify-content:center}
+.todo-expand-btn:hover{color:var(--primary);background:var(--primary-bg)}
+
+/* ===== Journal (进展记录) ===== */
+.journal-toggle{flex-basis:100%;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);padding:8px 0 0;margin-top:2px;border-top:1px dashed var(--border);user-select:none;transition:color .15s}
+.journal-label{cursor:pointer;display:flex;align-items:center;gap:4px;flex-shrink:0;user-select:none}
+.journal-label:hover{color:var(--primary)}
+.journal-label svg{flex-shrink:0}
+.journal-label .count{font-weight:500}
+.journal-chevron{cursor:pointer;flex-shrink:0;transition:transform .2s}
+.journal-chevron{transition:transform .2s}
+.journal-panel{flex-basis:100%;background:var(--bg);border-radius:var(--radius-sm);overflow:hidden;display:none;margin-top:6px}
+.journal-panel.open{display:block}
+.journal-entries{max-height:180px;overflow-y:auto;padding:6px 10px}
+.journal-entry{padding:6px 0;border-bottom:1px solid var(--border-light);font-size:12px;display:flex;gap:8px}
+.journal-entry:last-child{border-bottom:none}
+.journal-entry-date{color:var(--primary);font-weight:600;white-space:nowrap;flex-shrink:0;font-size:11px}
+.journal-entry-content{color:var(--text);word-break:break-word;line-height:1.5;flex:1}
+.journal-entry-time{color:var(--text-light);font-size:10px;white-space:nowrap}
+.journal-entry-del{flex-shrink:0;cursor:pointer;color:var(--text-light);background:none;border:none;width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:3px;transition:all .15s;opacity:0}
+.journal-entry:hover .journal-entry-del{opacity:1}
+.journal-entry-del:hover{color:var(--danger);background:var(--danger-bg)}
+.journal-form{display:flex;gap:4px;align-items:center;flex:1;min-width:0}
+.journal-form textarea{flex:1;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--text);background:var(--card);resize:none;min-height:28px;max-height:64px;font-family:inherit;transition:border-color .15s;min-width:0}
+.journal-form textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px rgba(13,148,136,.1)}
+.journal-form textarea::placeholder{color:var(--text-light)}
+.journal-form .btn{padding:4px 10px;font-size:11px;flex-shrink:0;min-height:28px}
+
+/* ===== Journal Color Picker ===== */
+.journal-color-indicator{flex-shrink:0;width:22px;height:22px;border-radius:50%;cursor:pointer;transition:all .15s;position:relative;border:2px dashed var(--text-light)}
+.journal-color-indicator:hover{transform:scale(1.15);box-shadow:var(--shadow);border-color:var(--primary);border-style:solid}
+.jcolor-dot{width:16px;height:16px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:all .15s;flex-shrink:0}
+.jcolor-dot:hover{transform:scale(1.2);box-shadow:var(--shadow)}
+.jcolor-dot.active{border-color:var(--text);box-shadow:var(--shadow-md)}
+.jcolor-dot.selected-none{border:2px dashed var(--text-light)}
+.journal-color-popup{display:none;position:absolute;bottom:calc(100% + 4px);right:0;z-index:10;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px;box-shadow:var(--shadow-lg);white-space:nowrap}
+.journal-color-popup.show{display:flex;gap:3px}
+.journal-entry-color-dot{flex-shrink:0;width:10px;height:10px;border-radius:50%;margin-top:3px;cursor:pointer;transition:transform .15s;position:relative}
+.journal-entry-color-dot:hover{transform:scale(1.5)}
+.journal-entry-color-popup{display:none;position:absolute;top:100%;right:0;z-index:10;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px;box-shadow:var(--shadow-lg);margin-top:2px;white-space:nowrap}
+.journal-entry-color-popup.show{display:flex;gap:3px}
+
+/* ===== Todo Edit Panel ===== */
+.todo-edit-panel{display:none;padding:8px 0 0;border-top:1px dashed var(--border);margin-top:6px}
+.todo-edit-panel.open{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}
+.todo-edit-panel .form-field{min-width:100px}
+.todo-edit-panel .form-field label{font-size:11px;color:var(--text-muted)}
+.todo-edit-panel .input,.todo-edit-panel .select{padding:4px 8px;font-size:13px}
+
+/* ===== Notes (Card Grid) ===== */
+.notes-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px}
+.notes-header-title{display:flex;align-items:center;gap:6px;font-size:17px;font-weight:700;color:var(--text)}
+.notes-search{flex:1;max-width:320px}
+.notes-search input{width:100%;padding:8px 14px;border:1px solid var(--border);border-radius:20px;font-size:13px;color:var(--text);background:var(--card);transition:border-color .15s;box-sizing:border-box}
+.notes-search input:focus{outline:none;border-color:var(--primary)}
+.notes-search input::placeholder{color:var(--text-light)}
+.notes-tag-filter{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;align-items:center}
+.notes-tag-pill{padding:5px 14px;border-radius:16px;font-size:12px;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--text-muted);transition:all .15s;display:flex;align-items:center;gap:2px}
+.notes-tag-pill:hover{border-color:var(--primary);color:var(--primary)}
+.notes-tag-pill.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.notes-tag-count{font-size:11px;opacity:.7}
+.notes-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.note-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);position:relative;border-left:3px solid var(--primary);transition:transform .15s,box-shadow .15s;display:flex;flex-direction:column}
+.note-card:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.note-card-text{font-size:14px;color:var(--text);white-space:pre-wrap;word-break:break-word;line-height:1.6;flex:1}
+.note-card-footer{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border-light)}
+.note-card-tags{display:flex;flex-wrap:wrap;gap:4px}
+.note-card-tag{font-size:11px;padding:2px 8px;border-radius:10px;background:rgba(13,148,136,.08);color:var(--primary);cursor:pointer;transition:background .15s}
+.note-card-tag:hover{background:rgba(13,148,136,.18)}
+.note-card-time{font-size:11px;color:var(--text-light);white-space:nowrap}
+.note-card-delete{position:absolute;top:8px;right:8px;color:var(--text-light);cursor:pointer;background:none;border:none;padding:4px;border-radius:4px;opacity:0;transition:opacity .15s,color .15s}
+.note-card:hover .note-card-delete{opacity:1}
+.note-card-delete:hover{color:var(--danger);background:var(--danger-bg)}
+
+/* ===== Projects ===== */
+.project-stats{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--text-muted);margin-bottom:16px;flex-wrap:wrap}
+.project-stats .stat-num{font-weight:600;color:var(--text)}
+.project-stats .stat-num.danger{color:var(--danger)}
+.project-stats .stat-num.success{color:var(--success)}
+.project-stats .stat-num.primary{color:var(--primary)}
+.project-new-form{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:20px;box-shadow:var(--shadow)}
+.project-new-header{display:flex;align-items:center;gap:8px;margin-bottom:14px;cursor:pointer}
+.project-new-header svg{color:var(--primary)}
+.project-new-header span{font-size:15px;font-weight:600;color:var(--text)}
+.project-new-hint{font-size:12px;color:var(--text-light);margin-left:auto}
+.project-new-fields{display:none;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.project-new-fields.show{display:grid}
+.project-new-fields .form-field label{font-size:12px;color:var(--text-muted);font-weight:500}
+.project-section-header{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;color:var(--text);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border-light)}
+.project-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:0;margin-bottom:12px;box-shadow:var(--shadow);position:relative;overflow:hidden;border-left:4px solid transparent}
+.project-card.active-proj{border-left-color:var(--success)}
+.project-card.blocked-proj{border-left-color:#f97316}
+.project-card.done-proj{border-left-color:#94a3b8}
+.project-card-inner{padding:16px}
+.project-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.project-card-name{font-size:16px;font-weight:600;color:var(--text)}
+.project-card-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.project-status-pill{font-size:11px;padding:3px 10px;border-radius:12px;font-weight:600;white-space:nowrap}
+.project-status-pill.status-active{background:#ecfdf5;color:#166534}
+.project-status-pill.status-blocked{background:#fff7ed;color:#92400e}
+.project-status-pill.status-done{background:#f1f5f9;color:#64748b}
+.proj-action-btn{cursor:pointer;background:none;border:none;padding:5px;border-radius:4px;color:var(--text-light);transition:all .15s;display:flex;align-items:center;justify-content:center}
+.proj-action-btn:hover{color:var(--primary);background:var(--primary-bg)}
+.proj-action-btn.danger:hover{color:var(--danger);background:var(--danger-bg)}
+.proj-field-row{display:flex;gap:8px;margin-bottom:6px;align-items:flex-start}
+.proj-field-label{font-size:12px;color:var(--text-light);white-space:nowrap;min-width:56px;padding-top:6px;flex-shrink:0}
+.proj-field-value{font-size:13px;color:var(--text);line-height:1.5;word-break:break-word}
+.proj-field-value.blocked-text{color:#dc2626;font-weight:500}
+.proj-linked-section{margin-top:12px;padding-top:10px;border-top:1px solid var(--border-light)}
+.proj-linked-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.proj-linked-label{font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px}
+.proj-linked-count{font-weight:600;color:var(--text)}
+.proj-overdue-tag{font-size:11px;color:var(--danger);font-weight:600}
+.proj-add-task-btn{cursor:pointer;background:none;border:none;color:var(--primary);font-size:12px;font-weight:500;padding:2px 8px;border-radius:10px;transition:all .15s;display:flex;align-items:center;gap:3px}
+.proj-add-task-btn:hover{background:var(--primary-bg)}
+.proj-todo-list{}
+.proj-todo-item{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px}
+.proj-todo-check{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--border);flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.proj-todo-check:hover{border-color:var(--primary)}
+.proj-todo-check.checked{background:var(--success);border-color:var(--success)}
+.proj-todo-check.checked svg{display:block}
+.proj-todo-check svg{display:none;width:11px;height:11px;color:#fff}
+.proj-todo-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.proj-todo-deadline{font-size:11px;color:var(--text-light);white-space:nowrap;flex-shrink:0}
+.proj-todo-deadline.overdue{color:var(--danger);font-weight:600}
+.proj-update-time{font-size:11px;color:var(--text-light);margin-top:8px}
+.proj-all-done-msg{font-size:12px;color:var(--success);display:flex;align-items:center;gap:4px;margin-top:6px}
+
+/* ===== Todo Edit Modal ===== */
+.todo-edit-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200;display:flex;align-items:center;justify-content:center}
+.todo-edit-dialog{background:var(--card);border-radius:var(--radius);padding:24px;width:92%;max-width:560px;box-shadow:var(--shadow-lg)}
+.todo-edit-title{font-size:17px;font-weight:700;color:var(--text);margin-bottom:16px}
+.todo-edit-field{margin-bottom:14px}
+.todo-edit-field label{display:block;font-size:12px;color:var(--text-muted);font-weight:500;margin-bottom:4px}
+.todo-edit-field input,.todo-edit-field select{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;color:var(--text);background:var(--card);transition:border-color .15s;box-sizing:border-box}
+.todo-edit-field input:focus,.todo-edit-field select:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(13,148,136,.1)}
+.todo-edit-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
+
+/* ===== Project Edit Modal ===== */
+.project-edit-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200;display:flex;align-items:center;justify-content:center}
+.project-edit-dialog{background:var(--card);border-radius:var(--radius);padding:24px;width:90%;max-width:480px;box-shadow:var(--shadow-lg)}
+.project-edit-title{font-size:17px;font-weight:700;color:var(--text);margin-bottom:16px}
+.project-edit-field{margin-bottom:14px}
+.project-edit-field label{display:block;font-size:12px;color:var(--text-muted);font-weight:500;margin-bottom:4px}
+.project-edit-field input,.project-edit-field select{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;color:var(--text);background:var(--card);transition:border-color .15s;box-sizing:border-box}
+.project-edit-field input:focus,.project-edit-field select:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(13,148,136,.1)}
+.project-edit-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
+
+/* ===== Weekly Review ===== */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);text-align:center}
+.stat-value{font-size:28px;font-weight:700;color:var(--primary);line-height:1.2}
+.stat-label{font-size:12px;color:var(--text-muted);margin-top:4px}
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.chart-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:12px}
+.chart-with-legend{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.chart-legend{display:flex;flex-direction:column;gap:6px}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted)}
+.legend-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.chart-empty{text-align:center;padding:20px;font-size:13px;color:var(--text-light)}
+.stuck-list{list-style:none}
+.stuck-list li{padding:8px 0;border-bottom:1px solid var(--border-light);font-size:13px;display:flex;align-items:flex-start;gap:6px}
+.stuck-list li:last-child{border-bottom:none}
+.stuck-list .stuck-icon{color:var(--warning);flex-shrink:0;margin-top:2px}
+.stuck-list .stuck-icon.danger{color:var(--danger)}
+
+/* ===== Sync Status ===== */
+.sync-status{display:flex;align-items:center;gap:6px;font-size:12px;padding:6px 0}
+.sync-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.sync-dot.synced{background:var(--success)}
+.sync-dot.syncing{background:var(--warning);animation:pulse 1s infinite}
+.sync-dot.offline{background:var(--text-light)}
+.sync-dot.error{background:var(--danger)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.sync-text{color:var(--text-muted)}
+.sync-btn{font-size:11px;color:var(--primary);cursor:pointer;text-decoration:underline;background:none;border:none;padding:0}
+.sync-btn:hover{color:var(--primary-dark)}
+
+/* ===== Bottom Nav (Mobile) ===== */
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+.bottom-nav-items{display:flex}
+.bottom-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;cursor:pointer;color:var(--text-light);font-size:11px;transition:color .15s}
+.bottom-nav-item.active{color:var(--primary)}
+.bottom-nav-item svg{flex-shrink:0}
+.bottom-nav-sync{display:none;align-items:center;justify-content:center;gap:5px;padding:3px 8px 6px;font-size:11px;border-top:1px solid var(--border-light)}
+
+/* ===== Misc ===== */
+.empty-state{text-align:center;padding:40px 20px;color:var(--text-light)}
+.empty-state svg{margin-bottom:8px;opacity:.4}
+.empty-state p{font-size:14px}
+.hidden{display:none!important}
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:flex;align-items:center;justify-content:center}
+.confirm-dialog{background:var(--card);border-radius:var(--radius);padding:24px;max-width:360px;width:90%;box-shadow:var(--shadow-lg)}
+.confirm-dialog h3{font-size:16px;margin-bottom:8px}
+.confirm-dialog p{font-size:14px;color:var(--text-muted);margin-bottom:16px}
+.confirm-dialog-actions{display:flex;gap:8px;justify-content:flex-end}
+
+/* ===== Responsive ===== */
+@media(max-width:768px){
+  .header-content{padding:10px 14px}
+  .header-title{font-size:17px}
+  .header-actions .btn{padding:6px 10px;font-size:12px}
+  .top-alert{padding:12px 14px}
+  .top-alert-grid{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .bottom-nav{display:block}
+  .bottom-nav-sync{display:flex}
+  .content{padding:14px;padding-bottom:calc(86px + env(safe-area-inset-bottom))}
+  .form-row{flex-direction:column}
+  .form-field{width:100%}
+  .form-field.flex-1{min-width:0}
+  .stat-grid{grid-template-columns:repeat(2,1fr)}
+  .chart-grid{grid-template-columns:1fr}
+  .project-fields{grid-template-columns:1fr}
+  .project-new-fields{grid-template-columns:1fr}
+  .proj-field-row{flex-direction:column;gap:2px}
+  .proj-field-label{min-width:auto;padding-top:0}
+  .project-card-head{flex-wrap:wrap;gap:6px}
+  .project-edit-dialog{width:95%;padding:18px}
+  .todo-edit-dialog{width:95%;padding:18px}
+  .btn{min-height:44px}
+  .input,.select,.textarea{font-size:16px}
+  .todo-item{flex-wrap:wrap}
+  .todo-item-main{width:100%;padding-right:0}
+  .todo-actions-row{width:100%;justify-content:flex-end;padding-top:6px;padding-left:8px}
+  .todo-filter-tabs{gap:4px}
+  .todo-filter-tab{padding:4px 10px;font-size:11px}
+  .project-filter-bar{gap:4px}
+  .project-filter-chip{padding:3px 8px;font-size:11px}
+  .project-filter-label{font-size:11px}
+  .alert-item{flex-wrap:wrap}
+  .notes-header{flex-wrap:wrap}
+  .notes-search{max-width:100%;order:3;width:100%}
+  .notes-grid{grid-template-columns:1fr}
+  .note-card-delete{opacity:1}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===== Header ===== -->
+  <header class="header">
+    <div class="header-banner">
+      <svg width="100%" height="100%" viewBox="0 0 1200 80" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#0d9488" stop-opacity="0.07"/>
+            <stop offset="50%" stop-color="#2563eb" stop-opacity="0.04"/>
+            <stop offset="100%" stop-color="#0d9488" stop-opacity="0.07"/>
+          </linearGradient>
+        </defs>
+        <rect width="1200" height="80" fill="url(#bgGrad)"/>
+        <circle cx="120" cy="40" r="50" fill="none" stroke="#0d9488" stroke-width="1" opacity="0.12"/>
+        <circle cx="120" cy="40" r="30" fill="none" stroke="#0d9488" stroke-width="1" opacity="0.08"/>
+        <circle cx="280" cy="25" r="18" fill="#2563eb" opacity="0.06"/>
+        <path d="M 400 50 Q 500 20 600 45 T 800 40" fill="none" stroke="#0d9488" stroke-width="1.5" opacity="0.1"/>
+        <circle cx="920" cy="35" r="25" fill="none" stroke="#2563eb" stroke-width="1" opacity="0.1"/>
+        <circle cx="920" cy="35" r="12" fill="#0d9488" opacity="0.05"/>
+        <path d="M 1000 55 Q 1050 30 1100 50" fill="none" stroke="#2563eb" stroke-width="1" opacity="0.08"/>
+        <rect x="650" y="15" width="3" height="50" fill="#0d9488" opacity="0.06" rx="1"/>
+        <rect x="660" y="25" width="3" height="40" fill="#2563eb" opacity="0.05" rx="1"/>
+        <rect x="670" y="10" width="3" height="55" fill="#0d9488" opacity="0.05" rx="1"/>
+      </svg>
+    </div>
+    <div class="header-content">
+      <div class="header-title">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0d9488" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 3v18"/></svg>
+        <span>个人办公工作台</span>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-sm" onclick="exportData()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          导出备份
+        </button>
+        <button class="btn btn-sm" onclick="document.getElementById('importFile').click()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          导入
+        </button>
+        <button class="btn btn-sm btn-danger" onclick="clearAllData()">清空示例</button>
+        <button class="btn btn-sm" onclick="openSyncSettings()">同步设置</button>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== Export Reminder ===== -->
+  <div class="export-reminder" id="exportReminder">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <span>数据已积累 <strong id="reminderCount">20</strong> 条，建议导出一次备份，避免清理浏览器时丢失</span>
+    <button class="btn btn-sm btn-primary" onclick="exportData()">立即导出</button>
+    <button class="close" onclick="document.getElementById('exportReminder').classList.remove('show')">&times;</button>
+  </div>
+
+  <!-- ===== Top Alert: 今天要处理 ===== -->
+  <section class="top-alert">
+    <div class="top-alert-header">
+      <svg class="alert-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      今天要处理
+    </div>
+    <div class="top-alert-grid" id="topAlertGrid"></div>
+  </section>
+
+  <!-- ===== Main ===== -->
+  <div class="main">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        工作台
+      </div>
+      <nav class="sidebar-nav" id="sidebarNav"></nav>
+      <div class="sidebar-footer" id="sidebarFooter">
+        <div class="sync-status" id="syncStatus">
+          <span class="sync-dot syncing" id="syncDot"></span>
+          <span class="sync-text" id="syncText">连接中...</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Content -->
+    <main class="content">
+      <!-- 今天待办 -->
+      <section class="content-section active" id="section-todos">
+        <div class="section-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          今天待办
+        </div>
+        <div id="todosContent"></div>
+      </section>
+
+      <!-- 灵感速记 -->
+      <section class="content-section" id="section-notes">
+        <div class="section-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z"/><line x1="9" y1="21" x2="15" y2="21"/></svg>
+          灵感速记
+        </div>
+        <div id="notesContent"></div>
+      </section>
+
+      <!-- 项目跟进 -->
+      <section class="content-section" id="section-projects">
+        <div class="section-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          项目跟进
+        </div>
+        <div id="projectsContent"></div>
+      </section>
+
+      <!-- 每周复盘 -->
+      <section class="content-section" id="section-review">
+        <div class="section-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          每周复盘
+        </div>
+        <div id="reviewContent"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ===== Bottom Nav (Mobile) ===== -->
+  <nav class="bottom-nav" id="bottomNav">
+    <div class="bottom-nav-items" id="bottomNavItems"></div>
+    <div class="bottom-nav-sync" id="mobileSyncStatus">
+      <span class="sync-dot syncing" id="mobileSyncDot"></span>
+      <span class="sync-text" id="mobileSyncText">连接中...</span>
+    </div>
+  </nav>
+</div>
+
+<script>
+// ===== Icons =====
+const IC = {
+  todo:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+  note:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z"/><line x1="9" y1="21" x2="15" y2="21"/></svg>',
+  project:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+  review:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+  trash:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+  arrow:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>',
+  check:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>',
+  plus:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  warn:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+  ok:'<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+  journal:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="14" y2="11"/></svg>',
+  edit:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+  palette:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>',
+};
+
+// ===== Storage =====
+const SK = {todos:'wb_office_todos',notes:'wb_office_notes',projects:'wb_office_projects',sample:'wb_office_sample_loaded'};
+const PRIORITY_LABELS = {P0:'紧急',P1:'重要',P2:'一般',P3:'低'};
+const PRIORITY_COLORS = {P0:'#ef4444',P1:'#f97316',P2:'#3b82f6',P3:'#94a3b8'};
+const JOURNAL_COLORS = ['#1e293b','#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
+
+let state = {todos:[],notes:[],projects:[],currentTab:'todos',noteTagFilter:null,todoFilter:'today',projectFilter:'',noteSearchQuery:''};
+
+// ===== GitHub Gist Sync =====
+const GIST_ID = '9c80460a40683448346a1c58610e0066';
+const GIST_TOKEN_KEY = 'wb_gist_token';
+function getGistToken(){ return localStorage.getItem(GIST_TOKEN_KEY) || ''; }
+const GIST_API = 'https://api.github.com/gists/' + GIST_ID;
+const GIST_RAW = 'https://gist.githubusercontent.com/SergeDeng/' + GIST_ID + '/raw/workbench-data.json';
+let syncStatus = 'init', syncTimer = null;
+
+function updateSyncUI(status, msg){
+  syncStatus = status;
+  const dot = document.getElementById('syncDot');
+  const text = document.getElementById('syncText');
+  if(dot&&text){ dot.className = 'sync-dot ' + status; text.textContent = msg; }
+  // Mobile sync bar
+  const mDot = document.getElementById('mobileSyncDot');
+  const mText = document.getElementById('mobileSyncText');
+  if(mDot&&mText){ mDot.className = 'sync-dot ' + status; mText.textContent = msg; }
+}
+
+async function initGistSync(){
+  try{
+    updateSyncUI('syncing','拉取云端...');
+
+    // Download
+    const dlResp = await fetch(GIST_RAW + '?t=' + Date.now());
+    if(!dlResp.ok){
+      if(dlResp.status === 404) throw new Error('Gist 不存在');
+      throw new Error(`拉取失败(${dlResp.status})`);
+    }
+    const cloudData = await dlResp.json();
+    if(!cloudData || typeof cloudData !== 'object') throw new Error('数据格式异常');
+
+    // Merge: cloud newer wins
+    let merged = false;
+    ['todos','notes','projects'].forEach(key => {
+      if(!cloudData[key] || !Array.isArray(cloudData[key])) return;
+      const localMap = new Map();
+      state[key].forEach(item => localMap.set(item.id, item));
+      cloudData[key].forEach(cd => {
+        if(!cd || !cd.id) return;
+        const local = localMap.get(cd.id);
+        if(!local || (cd.updatedAt && cd.updatedAt >= (local.updatedAt||0))){
+          const idx = state[key].findIndex(x => x.id === cd.id);
+          if(idx >= 0) state[key][idx] = cd; else state[key].push(cd);
+          merged = true;
+        }
+        localMap.delete(cd.id);
+      });
+    });
+    if(merged){ saveLocal(); renderAll(); }
+
+    // Upload local to cloud if local has data cloud doesn't
+    if(getGistToken()){
+      scheduleGistUpload();
+      updateSyncUI('synced','已同步 \u2713');
+    }else{
+      updateSyncUI('offline','未配置同步Token');
+    }
+  }catch(e){
+    console.warn('Gist 同步初始化失败:', e.message);
+    updateSyncUI('offline','离线模式 \u25CB');
+  }
+}
+
+function scheduleGistUpload(){
+  if(syncStatus === 'offline') return;
+  if(syncTimer) clearTimeout(syncTimer);
+  syncTimer = setTimeout(uploadToGist, 800);
+}
+
+async function uploadToGist(){
+  const tk = getGistToken();
+  if(!tk){ updateSyncUI('offline','未配置同步Token'); return; }
+  if(syncStatus === 'offline') return;
+  try{
+    updateSyncUI('syncing','同步中...');
+    const payload = { todos: state.todos, notes: state.notes, projects: state.projects };
+
+    const resp = await fetch(GIST_API, {
+      method:'PATCH',
+      headers:{
+        'Authorization':'Bearer '+tk,
+        'Content-Type':'application/json',
+        'Accept':'application/vnd.github.v3+json'
+      },
+      body: JSON.stringify({
+        description: '个人办公工作台 - 数据同步',
+        files: { 'workbench-data.json': { content: JSON.stringify(payload) } }
+      })
+    });
+    if(!resp.ok){
+      const err = await resp.text();
+      throw new Error(`上传失败(${resp.status}): ${err}`);
+    }
+    updateSyncUI('synced','已同步 \u2713');
+  }catch(e){
+    console.warn('Gist 上传失败:', e.message);
+    updateSyncUI('offline','离线模式 \u25CB');
+  }
+}
+
+function openSyncSettings(){
+  const cur = getGistToken();
+  const overlay=document.createElement('div');
+  overlay.className='todo-edit-overlay';
+  overlay.id='syncSettingsOverlay';
+  overlay.onclick=function(e){if(e.target===overlay)overlay.remove()};
+  overlay.innerHTML=`
+    <div class="todo-edit-dialog">
+      <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;">GitHub 同步设置</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.7;">填入具有 <b>gist</b> 权限的 GitHub Token，即可在 PC 与手机间同步数据。<br>Token 仅保存在本机浏览器（localStorage），不会上传到任何服务器。</div>
+      <input class="todo-edit-field" id="syncTokenInput" type="password" placeholder="ghp_xxx" value="${cur}" style="width:100%;margin-bottom:14px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="btn btn-sm" onclick="document.getElementById('syncSettingsOverlay').remove()">取消</button>
+        <button class="btn btn-sm btn-primary" onclick="saveSyncToken()">保存并同步</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const inp=document.getElementById('syncTokenInput');
+  if(inp) inp.focus();
+}
+function saveSyncToken(){
+  const inp=document.getElementById('syncTokenInput');
+  const v=(inp?inp.value:'').trim();
+  if(v) localStorage.setItem(GIST_TOKEN_KEY, v); else localStorage.removeItem(GIST_TOKEN_KEY);
+  const ov=document.getElementById('syncSettingsOverlay'); if(ov) ov.remove();
+  updateSyncUI('syncing','重新连接...');
+  initGistSync();
+}
+
+function saveLocal(){
+  try{
+    localStorage.setItem(SK.todos,JSON.stringify(state.todos));
+    localStorage.setItem(SK.notes,JSON.stringify(state.notes));
+    localStorage.setItem(SK.projects,JSON.stringify(state.projects));
+    localStorage.setItem(SK.sample,'1');
+  }catch(e){alert('保存失败，存储空间可能已满：'+e.message)}
+}
+function save(){
+  saveLocal();
+  // No auto cloud push here — each CRUD action queues its own sync
+}
+function load(){
+  try{
+    state.todos=JSON.parse(localStorage.getItem(SK.todos)||'[]');
+    state.notes=JSON.parse(localStorage.getItem(SK.notes)||'[]');
+    state.projects=JSON.parse(localStorage.getItem(SK.projects)||'[]');
+    // 数据迁移：旧版本补字段
+    const now=Date.now();
+    state.todos.forEach(t=>{if(!t.journal)t.journal=[];if(!t.updatedAt)t.updatedAt=t.createdAt||now;});
+    state.notes.forEach(n=>{if(!n.updatedAt)n.updatedAt=n.createdAt||now;});
+    state.projects.forEach(p=>{if(!p.updatedAt)p.updatedAt=p.createdAt||now;});
+  }catch(e){state.todos=[];state.notes=[];state.projects=[]}
+}
+
+// ===== Utilities =====
+function genId(){return Date.now().toString(36)+Math.random().toString(36).substr(2,5)}
+function dateStr(off){const d=new Date();d.setDate(d.getDate()+off);return d.toISOString().split('T')[0]}
+function todayStr(){return dateStr(0)}
+function fmtDate(s,createdAt){if(!s)return'';const m=s.slice(5,7),d=s.slice(8,10);let r=m+'月'+d+'日';if(createdAt){const dt=new Date(createdAt);const h=dt.getHours(),min=String(dt.getMinutes()).padStart(2,'0');r+=' '+h+':'+min}return r}
+function fmtRelative(ts){const diff=Date.now()-ts;const day=Math.floor(diff/86400000);if(day===0)return'今天';if(day===1)return'昨天';if(day<7)return day+'天前';return new Date(ts).toLocaleDateString('zh-CN')}
+function getWeekRange(){const d=new Date();const day=d.getDay()||7;const mon=new Date(d);mon.setDate(d.getDate()-day+1);const sun=new Date(mon);sun.setDate(mon.getDate()+6);return{start:mon.toISOString().split('T')[0],end:sun.toISOString().split('T')[0]}}
+function isThisWeek(s){const r=getWeekRange();return s>=r.start&&s<=r.end}
+function daysOverdue(s){const t=todayStr();if(s>=t)return 0;const d1=new Date(s),d2=new Date(t);return Math.floor((d2-d1)/86400000)}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function getProjectName(pid){const p=state.projects.find(x=>x.id===pid);return p?p.name:''}
+
+// ===== Render: Sidebar =====
+function renderSidebar(){
+  const nav=document.getElementById('sidebarNav');
+  const items=[
+    {id:'todos',label:'今天待办',icon:IC.todo,count:state.todos.filter(t=>!t.done).length},
+    {id:'notes',label:'灵感速记',icon:IC.note,count:state.notes.length},
+    {id:'projects',label:'项目跟进',icon:IC.project,count:state.projects.length},
+    {id:'review',label:'每周复盘',icon:IC.review,count:0},
+  ];
+  nav.innerHTML=items.map(it=>`
+    <div class="nav-item ${state.currentTab===it.id?'active':''}" onclick="switchTab('${it.id}')">
+      ${it.icon}<span>${it.label}</span>
+      ${it.count>0?`<span class="badge">${it.count}</span>`:''}
+    </div>`).join('');
+  
+  const footer=document.getElementById('sidebarFooter');
+  const total=state.todos.length+state.notes.length+state.projects.length;
+  const existing=footer.querySelector('.data-count');
+  if(existing){existing.textContent=`共 ${total} 条数据 · 自动保存已开启`;}
+  else{
+    const span=document.createElement('div');span.className='data-count';span.style.cssText='font-size:12px;color:var(--text-light);margin-bottom:4px';
+    span.textContent=`共 ${total} 条数据 · 自动保存已开启`;
+    footer.insertBefore(span,footer.firstChild);
+  }
+  
+  // Bottom nav
+  const bn=document.getElementById('bottomNavItems');
+  bn.innerHTML=items.map(it=>`
+    <div class="bottom-nav-item ${state.currentTab===it.id?'active':''}" onclick="switchTab('${it.id}')">
+      ${it.icon}<span>${it.label}</span>
+    </div>`).join('');
+}
+
+// ===== Render: Top Alert =====
+function renderTopAlert(){
+  const grid=document.getElementById('topAlertGrid');
+  const overdue=state.todos.filter(t=>!t.done&&t.deadline&&daysOverdue(t.deadline)>0);
+  const stuck=state.projects.filter(p=>p.blocked);
+  
+  if(overdue.length===0&&stuck.length===0){
+    grid.innerHTML=`<div class="alert-card" style="grid-column:1/-1">
+      <div class="alert-empty">${IC.ok}<div>今天没有需要紧急处理的事项，状态不错</div></div>
+    </div>`;
+    return;
+  }
+  
+  let overdueHtml='';
+  if(overdue.length>0){
+    overdueHtml=`<div class="alert-card overdue">
+      <div class="alert-card-title">${IC.warn}逾期任务 <span class="count">${overdue.length}</span></div>
+      ${overdue.map(t=>`
+        <div class="alert-item">
+          <span class="alert-item-name">${esc(t.title)}</span>
+          <span class="alert-item-meta">逾期${daysOverdue(t.deadline)}天${t.deferredCount>0?' · 顺延'+t.deferredCount+'次':''}</span>
+          <button class="btn btn-sm btn-primary" onclick="deferTodo('${t.id}')">顺延到明天</button>
+        </div>`).join('')}
+    </div>`;
+  }
+  
+  let stuckHtml='';
+  if(stuck.length>0){
+    stuckHtml=`<div class="alert-card stuck">
+      <div class="alert-card-title">${IC.warn}卡住的项目 <span class="count">${stuck.length}</span></div>
+      ${stuck.map(p=>`
+        <div class="alert-item">
+          <span class="alert-item-name">${esc(p.name)}</span>
+          <span class="alert-item-meta">${esc(p.blockedNote||'未说明卡点')}</span>
+          <button class="btn btn-sm" onclick="switchTab('projects')">查看</button>
+        </div>`).join('')}
+    </div>`;
+  }
+  
+  grid.innerHTML=overdueHtml+stuckHtml;
+}
+
+// ===== Render: Todos =====
+function renderTodos(){
+  const c=document.getElementById('todosContent');
+  const projOpts=state.projects.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  const today=todayStr();
+
+  // ===== Add button =====
+  let html=`<div class="form-card" style="display:flex;align-items:center;justify-content:space-between">
+    <span style="font-size:13px;color:var(--text-muted)">共 ${state.todos.filter(t=>!t.done).length} 条待办</span>
+    <button class="btn btn-primary" onclick="openTodoModal()">${IC.plus}添加任务</button>
+  </div>`;
+
+  if(state.todos.length===0){
+    html+=`<div class="empty-state">${IC.todo}<p>还没有待办事项，添加一个开始吧</p></div>`;
+    c.innerHTML=html;return;
+  }
+
+  // ===== Filter tab counts =====
+  const todayTodos=state.todos.filter(t=>!t.done&&(t.deadline<=today||!t.deadline));
+  const overdueTodos=state.todos.filter(t=>!t.done&&t.deadline&&daysOverdue(t.deadline)>0);
+  const upcomingTodos=state.todos.filter(t=>!t.done&&t.deadline&&t.deadline>today);
+  const activeTodos=state.todos.filter(t=>!t.done);
+  const doneTodos=state.todos.filter(t=>t.done);
+  const tabCounts={today:todayTodos.length,overdue:overdueTodos.length,upcoming:upcomingTodos.length,all:activeTodos.length,done:doneTodos.length};
+
+  const tabLabels={today:'今天',overdue:'逾期',upcoming:'即将到来',all:'全部',done:'已完成'};
+  html+=`<div class="todo-filter-tabs">`+
+    ['today','overdue','upcoming','all','done'].map(k=>{
+      const isActive=state.todoFilter===k;
+      return `<span class="todo-filter-tab ${isActive?'active':''}" onclick="setTodoFilter('${k}')">${tabLabels[k]}${tabCounts[k]>0?`<span class="tab-count"> ${tabCounts[k]}</span>`:''}</span>`;
+    }).join('')+`</div>`;
+
+  // ===== Project filter bar =====
+  const projectStats=[];
+  state.projects.forEach(p=>{
+    const linked=state.todos.filter(t=>t.projectId===p.id);
+    if(linked.length>0) projectStats.push({id:p.id,name:p.name,total:linked.length,done:linked.filter(t=>t.done).length});
+  });
+  const unlinked=state.todos.filter(t=>!t.projectId);
+  if(unlinked.length>0) projectStats.push({id:'__none__',name:'未关联项目',total:unlinked.length,done:unlinked.filter(t=>t.done).length});
+
+  html+=`<div class="project-filter-bar">
+    <span class="project-filter-label">按项目筛选</span>
+    <span class="project-filter-chip ${state.projectFilter===''?'active':''}" onclick="setProjectFilter('')">全部</span>`+
+    projectStats.map(ps=>`<span class="project-filter-chip ${state.projectFilter===ps.id?'active':''}" onclick="setProjectFilter('${ps.id}')">${esc(ps.name)} ${ps.done}/${ps.total}</span>`).join('')+`</div>`;
+
+  // ===== Filter logic =====
+  let filtered=[];
+  switch(state.todoFilter){
+    case 'today': filtered=state.todos.filter(t=>!t.done&&(t.deadline<=today||!t.deadline));break;
+    case 'overdue': filtered=state.todos.filter(t=>!t.done&&t.deadline&&daysOverdue(t.deadline)>0);break;
+    case 'upcoming': filtered=state.todos.filter(t=>!t.done&&t.deadline&&t.deadline>today);break;
+    case 'all': filtered=state.todos.filter(t=>!t.done);break;
+    case 'done': filtered=state.todos.filter(t=>t.done);break;
+  }
+  if(state.projectFilter!==''){
+    if(state.projectFilter==='__none__') filtered=filtered.filter(t=>!t.projectId);
+    else filtered=filtered.filter(t=>t.projectId===state.projectFilter);
+  }
+
+  // ===== Render list =====
+  if(filtered.length===0){
+    html+=`<div class="empty-state"><p>该筛选条件下暂无任务</p></div>`;
+  }else{
+    filtered.forEach(t=>{
+      const od=!t.done&&t.deadline&&daysOverdue(t.deadline)>0;
+      const pn=getProjectName(t.projectId);
+      const jcount=(t.journal||[]).length;
+      const priColor=PRIORITY_COLORS[t.priority];
+      const noteLines=[];
+      if(od) noteLines.push('昨日未完成 · 已带到今天');
+      if(t.deadline&&!od&&t.deadline!==today) noteLines.push(fmtDate(t.deadline));
+      if(t.deferredCount>0) noteLines.push(`已顺延 ${t.deferredCount} 次`);
+
+      html+=`<div class="todo-item ${od?'overdue':''} ${t.done?'done':''}" id="todoItem-${t.id}">
+        <div class="todo-priority-bar" style="background:${priColor}"></div>
+        <div class="todo-item-main">
+          <div class="todo-checkbox ${t.done?'checked':''}" onclick="toggleTodo('${t.id}')">${IC.check}</div>
+          <div class="todo-body">
+            <div class="todo-title">${esc(t.title)}</div>
+            <div class="todo-tag-row">
+              <span class="priority-badge priority-${t.priority}">${PRIORITY_LABELS[t.priority]}</span>
+              ${od?`<span class="overdue-tag">逾期 ${daysOverdue(t.deadline)} 天</span>`:''}
+              ${pn?`<span class="project-tag-outline">${esc(pn)}</span>`:''}
+              ${t.deferredCount>0?`<span class="deferred-tag-pill">顺延 ${t.deferredCount} 次</span>`:''}
+            </div>
+            ${noteLines.length>0?`<div class="todo-note-row">${noteLines.join('<span class="note-sep">·</span>')}</div>`:''}
+            <div class="journal-toggle">
+              <span class="journal-label" onclick="toggleJournal('${t.id}')">${IC.journal}<span class="count">进展记录 ${jcount>0?`(${jcount})`:''}</span></span>
+              <div class="journal-form" onclick="event.stopPropagation()">
+                <textarea class="textarea" placeholder="记录今日进展..." id="jt-${t.id}" rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();addJournalEntry('${t.id}')}"></textarea>
+                <span class="journal-color-indicator" data-color="" id="jcolorIndicator-${t.id}" onclick="event.stopPropagation();toggleJColorPopup('${t.id}',this)" title="选择记录颜色">
+                  <span class="journal-color-popup" id="jcolorPopup-${t.id}">${JOURNAL_COLORS.map(c=>`<span class="jcolor-dot" style="background:${c}" data-color="${c}" onclick="event.stopPropagation();pickJColor('${t.id}','${c}',this)" title="${c}"></span>`).join('')}<span class="jcolor-dot selected-none" onclick="event.stopPropagation();pickJColor('${t.id}',null,this)" title="无颜色"></span></span>
+                </span>
+                <button class="btn btn-sm" onclick="addJournalEntry('${t.id}')" style="font-size:11px">${IC.plus}记录</button>
+              </div>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="journal-chevron" id="jchevron-${t.id}" onclick="toggleJournal('${t.id}')"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="todo-actions-row">
+          <button class="todo-expand-btn" onclick="toggleJournal('${t.id}')" title="展开进展记录">${IC.arrow}</button>
+          <button class="btn btn-sm btn-icon" onclick="editTodo('${t.id}')" title="编辑">${IC.edit}</button>
+          ${!t.done&&od?`<button class="btn btn-sm btn-primary" onclick="deferTodo('${t.id}')">顺延</button>`:''}
+          <button class="btn btn-sm btn-icon btn-danger" onclick="deleteTodo('${t.id}')" title="删除">${IC.trash}</button>
+        </div>
+        <div class="journal-panel" id="journal-${t.id}">
+          <div class="journal-entries" id="jent-${t.id}">
+            ${(t.journal||[]).slice().reverse().map(j=>`
+              <div class="journal-entry">
+                <span class="journal-entry-date">${fmtDate(j.date,j.createdAt)}</span>
+                <span class="journal-entry-content" style="${j.color?'color:'+j.color:''}">${esc(j.content)}</span>
+                <span class="journal-entry-color-dot" style="${j.color?'background:'+j.color:'border:1px dashed var(--text-light)'}" title="${j.color?'当前颜色:'+j.color:'默认颜色 · 点击更改'}" onclick="event.stopPropagation();toggleJEntryColorPicker('${t.id}',${j.createdAt},this)">
+                  <span class="journal-entry-color-popup">${JOURNAL_COLORS.map(c=>`<span class="jcolor-dot" style="background:${c}" data-color="${c}" onclick="event.stopPropagation();changeJEntryColor('${t.id}',${j.createdAt},'${c}')" title="${c}"></span>`).join('')}<span class="jcolor-dot selected-none" onclick="event.stopPropagation();changeJEntryColor('${t.id}',${j.createdAt},null)" title="默认颜色"></span></span>
+                </span>
+                <button class="journal-entry-del" title="删除此记录" onclick="event.stopPropagation();deleteJournalEntry('${t.id}',${j.createdAt})"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+              </div>`).join('')}
+            ${(t.journal||[]).length===0?`<div style="text-align:center;color:var(--text-light);padding:8px;font-size:12px">暂无记录，添加第一条</div>`:''}
+          </div>
+        </div>
+      </div>`;
+    });
+  }
+
+  c.innerHTML=html;
+}
+
+// ===== Render: Notes =====
+function renderNotes(){
+  const c=document.getElementById('notesContent');
+
+  // ===== Header: title + search + add button =====
+  let html=`<div class="notes-header">
+    <div class="notes-header-title">${IC.note} 我的灵感</div>
+    <div class="notes-search">
+      <input type="text" id="noteSearchInput" placeholder="搜内容或标签" value="${esc(state.noteSearchQuery)}" oninput="onNoteSearch(this.value)">
+    </div>
+    <button class="btn btn-primary" onclick="openNoteModal()">${IC.plus}记下来</button>
+  </div>`;
+
+  // ===== Tag filter bar with counts =====
+  const allTags=[...new Set(state.notes.flatMap(n=>n.tags))];
+  let filtered=state.notes;
+
+  // Apply search filter first
+  if(state.noteSearchQuery){
+    const q=state.noteSearchQuery.toLowerCase();
+    filtered=filtered.filter(n=>{
+      if(n.content.toLowerCase().includes(q))return true;
+      return n.tags.some(t=>t.toLowerCase().includes(q));
+    });
+  }
+
+  // Tag counts (after search)
+  const tagCounts={};
+  allTags.forEach(tag=>{tagCounts[tag]=filtered.filter(n=>n.tags.includes(tag)).length});
+  const totalFiltered=filtered.length;
+
+  html+=`<div class="notes-tag-filter">
+    <span class="notes-tag-pill ${!state.noteTagFilter?'active':''}" onclick="filterNoteTag(null)">全部<span class="notes-tag-count">${totalFiltered}</span></span>`+
+    allTags.map(tag=>`<span class="notes-tag-pill ${state.noteTagFilter===tag?'active':''}" onclick="filterNoteTag('${esc(tag)}')">${esc(tag)}<span class="notes-tag-count">${tagCounts[tag]||0}</span></span>`).join('')+`</div>`;
+
+  // Apply tag filter
+  if(state.noteTagFilter)filtered=filtered.filter(n=>n.tags.includes(state.noteTagFilter));
+  // Sort by newest first
+  filtered=[...filtered].sort((a,b)=>b.createdAt-a.createdAt);
+
+  // ===== Card grid =====
+  if(filtered.length===0){
+    html+=`<div class="empty-state">${IC.note}<p>${state.noteSearchQuery||state.noteTagFilter?'没有匹配的记录':'还没有灵感记录，随手记一个'}</p></div>`;
+  }else{
+    html+=`<div class="notes-grid">`;
+    filtered.forEach(n=>{
+      const d=new Date(n.createdAt);
+      const dateStr=(d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+      html+=`<div class="note-card">
+        <button class="note-card-delete" onclick="deleteNote('${n.id}')" title="删除">${IC.trash}</button>
+        <div class="note-card-text">${esc(n.content)}</div>
+        <div class="note-card-footer">
+          <div class="note-card-tags">${n.tags.map(t=>`<span class="note-card-tag" onclick="filterNoteTag('${esc(t)}')">#${esc(t)}</span>`).join('')}</div>
+          <span class="note-card-time">${dateStr}</span>
+        </div>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+
+  c.innerHTML=html;
+}
+
+function onNoteSearch(q){state.noteSearchQuery=q;renderNotes()}
+function filterNoteTag(tag){state.noteTagFilter=tag;renderNotes()}
+
+// ===== Render: Projects =====
+function renderProjects(){
+  const c=document.getElementById('projectsContent');
+  const today=todayStr();
+
+  // Stats summary
+  const active=state.projects.filter(p=>!p.blocked);
+  const blocked=state.projects.filter(p=>p.blocked);
+  // Count completed projects: all linked todos are done
+  const completed=state.projects.filter(p=>{
+    const linked=state.todos.filter(t=>t.projectId===p.id);
+    return linked.length>0&&linked.every(t=>t.done);
+  });
+  const pendingTodos=state.todos.filter(t=>!t.done).length;
+
+  let html=`<div class="project-stats">
+    <span><span class="stat-num primary">${active.length}</span>个在跑</span>
+    · <span class="stat-num danger">${blocked.length}</span>个卡住</span>
+    · 已完成 <span class="stat-num success">${completed.length}</span>个</span>
+    · 挂了 <span class="stat-num">${pendingTodos}</span>条待办</span>
+  </div>`;
+
+  // New project form (collapsible)
+  html+=`<div class="project-new-form">
+    <div class="project-new-header" onclick="toggleNewProjectForm()">
+      ${IC.plus}<span>新建项目</span>
+      <span class="project-new-hint">卡住的项目会自动出现在最上面的「今天要处理」</span>
+    </div>
+    <div class="project-new-fields" id="newProjFields">
+      <div class="form-field" style="grid-column:1/-1"><label>项目名</label><input class="input" id="projName" placeholder="例如：首页改版"></div>
+      <div class="form-field"><label>状态</label><select class="select" id="projStatus">
+        <option value="active">进行中</option><option value="blocked">卡住了</option><option value="done">已完成</option>
+      </select></div>
+      <div class="form-field"><label>&nbsp;</label></div>
+      <div class="form-field" style="grid-column:1/-1"><label>现在到哪一步</label><input class="input" id="projCurrent" placeholder="例如：视觉稿第二轮评审中"></div>
+      <div class="form-field" style="grid-column:1/-1"><label>下一步做什么</label><input class="input" id="projNext" placeholder="例如：周五前定稿并提交开发排期"></div>
+      <div class="form-field" style="grid-column:1/-1"><label>卡在哪儿（没有就留空）</label><input class="input" id="projBlockedNote" placeholder="例如：等数据组回复 6月口径"></div>
+      <div class="form-field" style="grid-column:1/-1"><label>&nbsp;</label><button class="btn btn-primary" onclick="addProjectNew()">${IC.plus}添加项目</button></div>
+    </div>
+  </div>`;
+
+  if(state.projects.length===0){
+    html+=`<div class="empty-state">${IC.project}<p>还没有项目，创建一个开始跟进</p></div>`;
+    c.innerHTML=html;return;
+  }
+
+  // "全部项目" header
+  html+=`<div class="project-section-header">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+    全部项目
+  </div>`;
+
+  state.projects.forEach(p=>{
+    const linked=state.todos.filter(t=>t.projectId===p.id);
+    const done=linked.filter(t=>t.done).length;
+    const total=linked.length;
+    const pct=total>0?Math.round(done/total*100):0;
+
+    // Determine status for styling
+    const isDone=total>0&&done===total;
+    const statusClass=p.blocked?'status-blocked':isDone?'status-done':'status-active';
+    const statusText=p.blocked?'卡住了':isDone?'已完成':'进行中';
+    const cardClass=p.blocked?'blocked-proj':isDone?'done-proj':'active-proj';
+
+    // Overdue count in linked todos
+    const overdueLinked=linked.filter(t=>!t.done&&t.deadline&&daysOverdue(t.deadline)>0);
+
+    html+=`<div class="project-card ${cardClass}">
+      <div class="project-card-inner">
+        <div class="project-card-head">
+          <div class="project-card-name">${esc(p.name)}</div>
+          <div class="project-card-actions">
+            <span class="project-status-pill ${statusClass}">${statusText}</span>
+            <button class="proj-action-btn" onclick="openProjectEditModal('${p.id}')" title="编辑项目">${IC.edit}</button>
+            <button class="proj-action-btn danger" onclick="confirmDeleteProject('${p.id}')" title="删除项目">${IC.trash}</button>
+          </div>
+        </div>
+
+        <div class="proj-field-row">
+          <span class="proj-field-label">现在</span>
+          <span class="proj-field-value">${p.currentStep?esc(p.currentStep):'<span style="color:var(--text-light)">—</span>'}</span>
+        </div>
+        <div class="proj-field-row">
+          <span class="proj-field-label">下一步</span>
+          <span class="proj-field-value">${p.nextStep?esc(p.nextStep):'<span style="color:var(--text-light)">—</span>'}</span>
+        </div>
+        ${p.blocked?`<div class="proj-field-row">
+          <span class="proj-field-label">卡在</span>
+          <span class="proj-field-value blocked-text">${esc(p.blockedNote||'未说明')}</span>
+        </div>`:''}
+
+        ${total>0?`<div class="proj-linked-section">
+          <div class="proj-linked-head">
+            <span class="proj-linked-label">关联待办 <span class="proj-linked-count">${done}/${total}</span>${overdueLinked.length>0?`<span class="proj-overdue-tag">· 逾期 ${overdueLinked.length}</span>`:''}</span>
+            <button class="proj-add-task-btn" onclick="quickAddTodoToProject('${p.id}')">${IC.plus}加一条</button>
+          </div>
+          ${!isDone?`<div class="progress-bar" style="margin-bottom:8px;height:6px"><div class="progress-fill" style="width:${pct}%"></div></div>`:''}
+          <div class="proj-todo-list">
+            ${linked.map(t=>{
+              const od=!t.done&&t.deadline&&daysOverdue(t.deadline)>0;
+              return `<div class="proj-todo-item">
+                <div class="proj-todo-check ${t.done?'checked':''}" onclick="toggleTodo('${t.id}')">${IC.check}</div>
+                <span class="proj-todo-title${t.done?'':''}" style="${t.done?'text-decoration:line-through;color:var(--text-light)':''}">${esc(t.title)}</span>
+                ${t.deadline&&!t.done?`<span class="proj-todo-deadline ${od?'overdue':''}">${od?'逾期 '+daysOverdue(t.deadline)+' 天':fmtDate(t.deadline)}</span>`:''}
+              </div>`;
+            }).join('')}
+          </div>
+          ${isDone?`<div class="proj-all-done-msg">${IC.ok}关联的 ${total} 件待办都做完了</div>`:''}
+        </div>`:''}
+
+        <div class="proj-update-time">更新 ${fmtRelative(p.updatedAt||p.createdAt)}</div>
+      </div>
+    </div>`;
+  });
+
+  c.innerHTML=html;
+}
+
+function toggleNewProjectForm(){
+  const el=document.getElementById('newProjFields');
+  if(el)el.classList.toggle('show');
+}
+function addProjectNew(){
+  const name=document.getElementById('projName').value.trim();
+  if(!name){alert('请输入项目名');return}
+  const status=document.getElementById('projStatus').value;
+  const current=document.getElementById('projCurrent').value.trim();
+  const next=document.getElementById('projNext').value.trim();
+  const blockedNote=document.getElementById('projBlockedNote').value.trim();
+  const proj={id:genId(),name,currentStep:current,nextStep:next,blocked:(status==='blocked'),blockedNote:blockedNote,createdAt:Date.now(),updatedAt:Date.now()};
+  state.projects.push(proj);
+  save();renderAll();
+  scheduleGistUpload();
+  // Reset form
+  document.getElementById('projName').value='';
+  document.getElementById('projCurrent').value='';
+  document.getElementById('projNext').value='';
+  document.getElementById('projBlockedNote').value='';
+  document.getElementById('projStatus').value='active';
+}
+
+// ===== Project Edit Modal =====
+let editingProjectId=null;
+
+function openProjectEditModal(id){
+  const p=state.projects.find(x=>x.id===id);if(!p)return;
+  editingProjectId=id;
+
+  // Build modal HTML
+  const overlay=document.createElement('div');
+  overlay.className='project-edit-overlay';
+  overlay.id='projectEditOverlay';
+  overlay.onclick=function(e){if(e.target===overlay)closeProjectEditModal()};
+  overlay.innerHTML=`
+    <div class="project-edit-dialog">
+      <div class="project-edit-title">编辑项目</div>
+      <div class="project-edit-field"><label>项目名</label><input id="editProjName" value="${esc(p.name)}" placeholder="输入项目名称"></div>
+      <div class="project-edit-field"><label>状态</label><select id="editProjStatus">
+        <option value="active" ${!p.blocked?'selected':''}>进行中</option>
+        <option value="blocked" ${p.blocked?'selected':''}>卡住了</option>
+        <option value="done">已完成</option>
+      </select></div>
+      <div class="project-edit-field"><label>现在到哪一步</label><input id="editProjCurrent" value="${esc(p.currentStep||'')}" placeholder="当前进展..."></div>
+      <div class="project-edit-field"><label>下一步做什么</label><input id="editProjNext" value="${esc(p.nextStep||'')}" placeholder="下一步计划..."></div>
+      <div class="project-edit-field"><label>卡在</label><input id="editProjBlockedNote" value="${esc(p.blockedNote||'')}" placeholder="说明卡点原因（没有就留空）"></div>
+      <div class="project-edit-actions">
+        <button class="btn btn-sm" onclick="closeProjectEditModal()">取消</button>
+        <button class="btn btn-sm btn-primary" onclick="saveProjectEdit()">${IC.edit}保存</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function closeProjectEditModal(){
+  const el=document.getElementById('projectEditOverlay');
+  if(el)el.remove();
+  editingProjectId=null;
+}
+
+function saveProjectEdit(){
+  if(!editingProjectId)return;
+  const p=state.projects.find(x=>x.id===editingProjectId);if(!p)return;
+  p.name=document.getElementById('editProjName').value.trim()||p.name;
+  p.currentStep=document.getElementById('editProjCurrent').value.trim();
+  p.nextStep=document.getElementById('editProjNext').value.trim();
+  p.blockedNote=document.getElementById('editProjBlockedNote').value.trim();
+  const status=document.getElementById('editProjStatus').value;
+  p.blocked=(status==='blocked');
+  p.updatedAt=Date.now();
+  save();renderAll();scheduleGistUpload();
+  closeProjectEditModal();
+}
+
+// ===== Quick Add Todo to Project =====
+function quickAddTodoToProject(projectId){
+  openTodoModal(null, projectId);
+}
+
+// ===== Confirm Delete Project =====
+function confirmDeleteProject(id){
+  const p=state.projects.find(x=>x.id===id);if(!p)return;
+  const overlay=document.createElement('div');
+  overlay.className='confirm-overlay';
+  overlay.innerHTML=`<div class="confirm-dialog">
+    <h3>删除项目</h3>
+    <p>确定要删除「${esc(p.name)}」吗？关联的待办不会被删除，但会取消项目关联。</p>
+    <div class="confirm-dialog-actions">
+      <button class="btn btn-sm" onclick="this.closest('.confirm-overlay').remove()">取消</button>
+      <button class="btn btn-sm btn-danger" onclick="deleteProject('${id}');this.closest('.confirm-overlay').remove()">确认删除</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+}
+
+// Keep old function for backward compat
+function addProject(){
+  // Redirect to new form - open it
+  const fields=document.getElementById('newProjFields');
+  if(fields&&!fields.classList.contains('show'))fields.classList.add('show');
+  setTimeout(()=>{const n=document.getElementById('projName');if(n)n.focus()},100);
+}
+
+// ===== Render: Weekly Review =====
+function renderReview(){
+  const c=document.getElementById('reviewContent');
+  const wr=getWeekRange();
+  const completedThisWeek=state.todos.filter(t=>t.done&&t.completedAt&&isThisWeek(new Date(t.completedAt).toISOString().split('T')[0]));
+  const activeProjects=state.projects.filter(p=>!p.blocked);
+  const stuckProjects=state.projects.filter(p=>p.blocked);
+  const deferredTodos=state.todos.filter(t=>!t.done&&t.deferredCount>0);
+  
+  // Stat cards
+  let html=`<div class="stat-grid">
+    <div class="stat-card"><div class="stat-value">${completedThisWeek.length}</div><div class="stat-label">本周完成</div></div>
+    <div class="stat-card"><div class="stat-value">${state.todos.filter(t=>!t.done).length}</div><div class="stat-label">待办剩余</div></div>
+    <div class="stat-card"><div class="stat-value">${activeProjects.length}</div><div class="stat-label">进行中项目</div></div>
+    <div class="stat-card"><div class="stat-value" style="color:var(--danger)">${stuckProjects.length}</div><div class="stat-label">卡住项目</div></div>
+  </div>`;
+  
+  // Priority pie chart
+  const priData=['P0','P1','P2','P3'].map(p=>({label:PRIORITY_LABELS[p],value:completedThisWeek.filter(t=>t.priority===p).length,color:PRIORITY_COLORS[p]})).filter(d=>d.value>0);
+  
+  html+=`<div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">本周完成 · 按优先级分布</div>
+      ${renderPieChart(priData)}
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">本周精力 · 按项目分布</div>
+      ${renderProjectBar(completedThisWeek)}
+    </div>
+  </div>`;
+  
+  // Stuck points
+  html+=`<div class="chart-card">
+    <div class="chart-title">卡点汇总</div>`;
+  if(stuckProjects.length===0&&deferredTodos.length===0){
+    html+=`<div class="chart-empty">暂无卡点，一切顺利</div>`;
+  }else{
+    html+=`<ul class="stuck-list">`;
+    stuckProjects.forEach(p=>{
+      html+=`<li><span class="stuck-icon danger">${IC.warn}</span><span><strong>${esc(p.name)}</strong> — ${esc(p.blockedNote||'未说明卡点')}</span></li>`;
+    });
+    deferredTodos.forEach(t=>{
+      html+=`<li><span class="stuck-icon">${IC.warn}</span><span><strong>${esc(t.title)}</strong> — 已顺延 ${t.deferredCount} 次${t.deadline?`，截止 ${fmtDate(t.deadline)}`:''}</span></li>`;
+    });
+    html+=`</ul>`;
+  }
+  html+=`</div>`;
+  
+  c.innerHTML=html;
+}
+
+// ===== Charts =====
+function renderPieChart(data){
+  if(data.length===0)return'<div class="chart-empty">本周暂无完成记录</div>';
+  const total=data.reduce((s,d)=>s+d.value,0);
+  const cx=70,cy=70,r=55;
+  let paths='';
+  if(data.length===1){
+    paths=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${data[0].color}"/>`;
+  }else{
+    let angle=-90;
+    data.forEach(d=>{
+      const sweep=(d.value/total)*360;
+      const a1=angle*Math.PI/180,a2=(angle+sweep)*Math.PI/180;
+      const x1=cx+r*Math.cos(a1),y1=cy+r*Math.sin(a1);
+      const x2=cx+r*Math.cos(a2),y2=cy+r*Math.sin(a2);
+      const la=sweep>180?1:0;
+      paths+=`<path d="M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${la} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z" fill="${d.color}"/>`;
+      angle+=sweep;
+    });
+  }
+  const legend=data.map(d=>`<div class="legend-item"><span class="legend-dot" style="background:${d.color}"></span>${d.label} (${d.value})</div>`).join('');
+  return`<div class="chart-with-legend">
+    <svg viewBox="0 0 140 140" width="120" height="120"><circle cx="${cx}" cy="${cy}" r="${r+3}" fill="#f8fafc"/>${paths}<circle cx="${cx}" cy="${cy}" r="25" fill="#fff"/><text x="${cx}" y="${cy-2}" text-anchor="middle" font-size="18" font-weight="700" fill="#1e293b">${total}</text><text x="${cx}" y="${cy+14}" text-anchor="middle" font-size="10" fill="#94a3b8">总计</text></svg>
+    <div class="chart-legend">${legend}</div>
+  </div>`;
+}
+
+function renderProjectBar(completed){
+  const pids=[...new Set(completed.map(t=>t.projectId).filter(Boolean))];
+  if(pids.length===0&&completed.filter(t=>!t.projectId).length===0)return'<div class="chart-empty">本周暂无项目相关完成记录</div>';
+  
+  const data=[];
+  pids.forEach(pid=>{
+    const cnt=completed.filter(t=>t.projectId===pid).length;
+    data.push({label:getProjectName(pid)||'已删除',value:cnt});
+  });
+  const noProj=completed.filter(t=>!t.projectId).length;
+  if(noProj>0)data.push({label:'独立任务',value:noProj});
+  data.sort((a,b)=>b.value-a.value);
+  
+  const maxV=Math.max(...data.map(d=>d.value),1);
+  const barH=24,gap=8,labelW=90,chartW=160;
+  let bars='';
+  data.forEach((d,i)=>{
+    const w=(d.value/maxV)*chartW;
+    const y=i*(barH+gap);
+    const lbl=d.label.length>7?d.name?.substring(0,7)+'…':d.label.substring(0,7)+(d.label.length>7?'…':'');
+    bars+=`<text x="0" y="${y+16}" font-size="12" fill="#64748b">${esc(lbl)}</text>
+    <rect x="${labelW}" y="${y}" width="${chartW}" height="${barH}" fill="#f1f5f9" rx="4"/>
+    <rect x="${labelW}" y="${y}" width="${w.toFixed(1)}" height="${barH}" fill="#0d9488" rx="4"/>
+    <text x="${labelW+w+6}" y="${y+16}" font-size="12" fill="#1e293b" font-weight="600">${d.value}件</text>`;
+  });
+  const th=data.length*(barH+gap);
+  return`<svg viewBox="0 0 300 ${th}" width="100%" height="${th}" style="max-width:100%;overflow:visible">${bars}</svg>`;
+}
+
+// ===== Actions: Todos =====
+let editingTodoId=null;
+
+function openTodoModal(id, presetProjectId){
+  editingTodoId=id||null;
+  const t=id?state.todos.find(x=>x.id===id):null;
+  const presetProj=(presetProjectId!=null)?presetProjectId:(t?t.projectId:null);
+  const projOpts=state.projects.map(p=>`<option value="${p.id}"${presetProj===p.id?' selected':''}>${esc(p.name)}</option>`).join('');
+  const title=t?'编辑任务':'新建任务';
+  const overlay=document.createElement('div');
+  overlay.className='todo-edit-overlay';
+  overlay.id='todoEditOverlay';
+  overlay.onclick=function(e){if(e.target===overlay)closeTodoModal()};
+  overlay.innerHTML=`
+    <div class="todo-edit-dialog">
+      <div class="todo-edit-title">${title}</div>
+      <div class="todo-edit-field"><label>要做什么</label><input id="editTodoTitle" value="${t?esc(t.title):''}" placeholder="输入任务内容..."></div>
+      <div class="todo-edit-field"><label>轻重缓急</label><select id="editTodoPriority">
+        <option value="P0" ${t&&t.priority==='P0'?'selected':''}>紧急重要（马上做）</option>
+        <option value="P1" ${(!t||t.priority==='P1')?'selected':''}>重要（尽快做）</option>
+        <option value="P2" ${t&&t.priority==='P2'?'selected':''}>一般（有空做）</option>
+        <option value="P3" ${t&&t.priority==='P3'?'selected':''}>低优先级</option>
+      </select></div>
+      <div class="todo-edit-field"><label>截止日期</label><input type="date" id="editTodoDeadline" value="${t?t.deadline||'':todayStr()}"></div>
+      <div class="todo-edit-field"><label>关联项目（可不选）</label><select id="editTodoProject">
+        <option value="" ${(!t||!t.projectId)?'selected':''}>无项目</option>${projOpts}
+      </select></div>
+      <div class="todo-edit-actions">
+        <button class="btn btn-sm" onclick="closeTodoModal()">取消</button>
+        <button class="btn btn-sm btn-primary" onclick="saveTodoModal()">${IC.edit}保存</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  // Auto-focus title input
+  setTimeout(()=>{const inp=document.getElementById('editTodoTitle');if(inp)inp.focus()},100);
+}
+
+function closeTodoModal(){
+  const el=document.getElementById('todoEditOverlay');
+  if(el)el.remove();
+  editingTodoId=null;
+}
+
+function saveTodoModal(){
+  const title=document.getElementById('editTodoTitle').value.trim();
+  if(!title){alert('请输入任务内容');return}
+  const priority=document.getElementById('editTodoPriority').value;
+  const deadline=document.getElementById('editTodoDeadline').value||'';
+  const projectId=document.getElementById('editTodoProject').value||null;
+
+  if(editingTodoId){
+    // Edit existing
+    const t=state.todos.find(x=>x.id===editingTodoId);if(!t)return;
+    t.title=title;t.priority=priority;t.deadline=deadline||null;
+    t.projectId=projectId;t.updatedAt=Date.now();
+  }else{
+    // Create new
+    state.todos.push({id:genId(),title,priority,deadline:deadline||todayStr(),
+      done:false,createdAt:Date.now(),completedAt:null,updatedAt:Date.now(),
+      projectId,deferredCount:0,journal:[]});
+  }
+  save();renderAll();scheduleGistUpload();
+  closeTodoModal();
+}
+
+// Legacy compatibility
+function addTodo(){openTodoModal()}
+function toggleTodo(id){
+  const t=state.todos.find(x=>x.id===id);if(!t)return;
+  t.done=!t.done;
+  t.completedAt=t.done?Date.now():null;
+  t.updatedAt=Date.now();
+  save();renderAll();
+  scheduleGistUpload();
+}
+function deferTodo(id){
+  const t=state.todos.find(x=>x.id===id);if(!t)return;
+  t.deadline=dateStr(1);
+  t.deferredCount=(t.deferredCount||0)+1;
+  t.updatedAt=Date.now();
+  save();renderAll();
+  scheduleGistUpload();
+}
+function deleteTodo(id){
+  state.todos=state.todos.filter(x=>x.id!==id);
+  save();renderAll();
+  scheduleGistUpload();
+}
+function toggleJournal(id){
+  const panel=document.getElementById('journal-'+id);
+  const chevron=document.getElementById('jchevron-'+id);
+  if(!panel)return;
+  panel.classList.toggle('open');
+  if(chevron)chevron.style.transform=panel.classList.contains('open')?'rotate(180deg)':'rotate(0deg)';
+}
+function addJournalEntry(id){
+  const ta=document.getElementById('jt-'+id);if(!ta)return;
+  const content=ta.value.trim();if(!content)return;
+  const t=state.todos.find(x=>x.id===id);if(!t)return;
+  if(!t.journal)t.journal=[];
+  const indicator=document.getElementById('jcolorIndicator-'+id);
+  const color=indicator?indicator.dataset.color:null;
+  t.journal.push({date:todayStr(),content,createdAt:Date.now(),color:color||null});
+  t.updatedAt=Date.now();
+  ta.value='';save();renderAll();
+  setTimeout(()=>{
+    const panel=document.getElementById('journal-'+id);
+    if(panel)panel.classList.add('open');
+    const chevron=document.getElementById('jchevron-'+id);
+    if(chevron)chevron.style.transform='rotate(180deg)';
+  },50);
+  scheduleGistUpload();
+}
+function deleteJournalEntry(todoId,entryCreatedAt){
+  const t=state.todos.find(x=>x.id===todoId);if(!t||!t.journal)return;
+  t.journal=t.journal.filter(j=>j.createdAt!==entryCreatedAt);
+  t.updatedAt=Date.now();
+  save();renderAll();
+  scheduleGistUpload();
+}
+
+// ===== Journal Color =====
+function toggleJColorPopup(todoId,el){
+  const popup=el.querySelector('.journal-color-popup');if(!popup)return;
+  document.querySelectorAll('.journal-color-popup.show').forEach(p=>{if(p!==popup)p.classList.remove('show');});
+  popup.classList.toggle('show');
+  if(popup.classList.contains('show')){
+    const closePopup=(e)=>{if(!popup.contains(e.target)&&e.target!==el&&!el.contains(e.target)){popup.classList.remove('show');document.removeEventListener('click',closePopup);}};
+    setTimeout(()=>document.addEventListener('click',closePopup),0);
+  }
+}
+function pickJColor(todoId,color,el){
+  const indicator=document.getElementById('jcolorIndicator-'+todoId);if(!indicator)return;
+  indicator.style.background=color||'';
+  indicator.dataset.color=color||'';
+  const popup=document.getElementById('jcolorPopup-'+todoId);if(popup){
+    popup.querySelectorAll('.jcolor-dot').forEach(d=>d.classList.remove('active'));
+    el.classList.add('active');
+    popup.classList.remove('show');
+  }
+}
+// legacy compatibility
+function selectJColor(todoId,color,el){
+  pickJColor(todoId,color,el);
+}
+
+// ===== Todo Edit (modal) =====
+function editTodo(id){openTodoModal(id)}
+function saveEditTodo(id){saveTodoModal()}
+function cancelEditTodo(id){closeTodoModal()}
+
+// ===== Journal Entry Color =====
+function toggleJEntryColorPicker(todoId,entryCreatedAt,el){
+  const popup=el.querySelector('.journal-entry-color-popup');if(!popup)return;
+  // Close all other popups
+  document.querySelectorAll('.journal-entry-color-popup.show').forEach(p=>{if(p!==popup)p.classList.remove('show');});
+  popup.classList.toggle('show');
+  // Close on outside click
+  if(popup.classList.contains('show')){
+    setTimeout(()=>{
+      const handler=(e)=>{if(!popup.contains(e.target)){popup.classList.remove('show');document.removeEventListener('click',handler);}};
+      document.addEventListener('click',handler);
+    },10);
+  }
+}
+function changeJEntryColor(todoId,entryCreatedAt,color){
+  const t=state.todos.find(x=>x.id===todoId);if(!t||!t.journal)return;
+  const entry=t.journal.find(j=>j.createdAt===entryCreatedAt);if(!entry)return;
+  entry.color=color||null;
+  t.updatedAt=Date.now();
+  save();renderAll();
+  scheduleGistUpload();
+}
+
+// ===== Actions: Notes =====
+function openNoteModal(){
+  const overlay=document.createElement('div');
+  overlay.className='todo-edit-overlay';
+  overlay.id='noteEditOverlay';
+  overlay.onclick=function(e){if(e.target===overlay)closeNoteModal()};
+  overlay.innerHTML=`
+    <div class="todo-edit-dialog">
+      <div class="todo-edit-title">记下来</div>
+      <div class="todo-edit-field"><label>灵感内容</label><textarea id="editNoteContent" placeholder="随手记下想法..." rows="4" style="resize:vertical"></textarea></div>
+      <div class="todo-edit-field"><label>标签（逗号分隔）</label><input id="editNoteTags" placeholder="方法, 产品, 灵感..."></div>
+      <div class="todo-edit-actions">
+        <button class="btn btn-sm" onclick="closeNoteModal()">取消</button>
+        <button class="btn btn-sm btn-primary" onclick="saveNoteModal()">${IC.plus}保存</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  setTimeout(()=>{const inp=document.getElementById('editNoteContent');if(inp)inp.focus()},100);
+}
+
+function closeNoteModal(){
+  const el=document.getElementById('noteEditOverlay');
+  if(el)el.remove();
+}
+
+function saveNoteModal(){
+  const content=document.getElementById('editNoteContent').value.trim();
+  if(!content){alert('请输入内容');return}
+  const tags=document.getElementById('editNoteTags').value.split(/[,，、\s]+/).map(t=>t.trim()).filter(Boolean);
+  state.notes.push({id:genId(),content,tags,createdAt:Date.now(),updatedAt:Date.now()});
+  save();renderAll();scheduleGistUpload();
+  closeNoteModal();
+}
+
+// Legacy compatibility
+function addNote(){openNoteModal()}
+function filterTag(tag){filterNoteTag(tag)}
+function deleteNote(id){
+  state.notes=state.notes.filter(x=>x.id!==id);
+  save();renderAll();
+  scheduleGistUpload();
+}
+
+// ===== Actions: Projects =====
+function addProject(){
+  const name=document.getElementById('projName').value.trim();
+  if(!name)return;
+  const proj={id:genId(),name,currentStep:'',nextStep:'',blocked:false,blockedNote:'',createdAt:Date.now(),updatedAt:Date.now()};
+  state.projects.push(proj);
+  save();renderAll();
+  document.getElementById('projName').value='';
+  scheduleGistUpload();
+}
+function updateProjectField(id,field,value){
+  const p=state.projects.find(x=>x.id===id);if(!p)return;
+  p[field]=value;p.updatedAt=Date.now();save();
+  scheduleGistUpload();
+}
+function toggleBlocked(id){
+  const p=state.projects.find(x=>x.id===id);if(!p)return;
+  p.blocked=!p.blocked;
+  if(!p.blocked)p.blockedNote='';
+  p.updatedAt=Date.now();
+  save();renderAll();
+  scheduleGistUpload();
+}
+function deleteProject(id){
+  state.projects=state.projects.filter(x=>x.id!==id);
+  state.todos.forEach(t=>{if(t.projectId===id){t.projectId=null;t.updatedAt=Date.now()}});
+  save();renderAll();
+  scheduleGistUpload();
+}
+
+// ===== Export/Import =====
+function exportData(){
+  const data={version:'1.0',exportDate:new Date().toISOString(),
+    data:{todos:state.todos,notes:state.notes,projects:state.projects}};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='office_workbench_'+todayStr()+'.json';
+  a.click();URL.revokeObjectURL(url);
+}
+function importData(event){
+  const file=event.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const data=JSON.parse(e.target.result);
+      const d=data.data||data;
+      if(!Array.isArray(d.todos)||!Array.isArray(d.notes)||!Array.isArray(d.projects))throw new Error('格式不正确');
+      state.todos=d.todos;state.notes=d.notes;state.projects=d.projects;
+      save();renderAll();
+      alert('导入成功！共 '+ (d.todos.length+d.notes.length+d.projects.length) +' 条数据');
+    }catch(err){alert('导入失败：'+err.message)}
+  };
+  reader.readAsText(file);
+  event.target.value='';
+}
+async function clearAllData(){
+  showConfirm('清空所有数据','确定要清空全部数据吗？此操作不可撤销，建议先导出备份。',async function(){
+    state.todos=[];state.notes=[];state.projects=[];
+    localStorage.removeItem(SK.todos);localStorage.removeItem(SK.notes);localStorage.removeItem(SK.projects);
+    renderAll();
+    uploadToGist(); // 同步空数据到云端
+  });
+}
+
+// ===== Confirm Dialog =====
+function showConfirm(title,msg,onOk){
+  const overlay=document.createElement('div');
+  overlay.className='confirm-overlay';
+  overlay.innerHTML=`<div class="confirm-dialog">
+    <h3>${title}</h3><p>${msg}</p>
+    <div class="confirm-dialog-actions">
+      <button class="btn" onclick="this.closest('.confirm-overlay').remove()">取消</button>
+      <button class="btn btn-danger" id="confirmOkBtn">确定清空</button>
+    </div></div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#confirmOkBtn').onclick=function(){overlay.remove();onOk()};
+  overlay.onclick=function(e){if(e.target===overlay)overlay.remove()};
+}
+
+// ===== Tab Switch =====
+function switchTab(tab){
+  state.currentTab=tab;
+  document.querySelectorAll('.content-section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('section-'+tab).classList.add('active');
+  renderSidebar();
+  renderCurrentTab();
+}
+function renderCurrentTab(){
+  if(state.currentTab==='todos')renderTodos();
+  else if(state.currentTab==='notes')renderNotes();
+  else if(state.currentTab==='projects')renderProjects();
+  else if(state.currentTab==='review')renderReview();
+}
+
+function setTodoFilter(filter){
+  state.todoFilter=filter;
+  renderTodos();
+}
+function setProjectFilter(pid){
+  state.projectFilter=pid;
+  renderTodos();
+}
+
+// ===== Export Reminder =====
+function checkExportReminder(){
+  const total=state.todos.length+state.notes.length+state.projects.length;
+  const el=document.getElementById('exportReminder');
+  if(total>=20){
+    el.classList.add('show');
+    document.getElementById('reminderCount').textContent=total;
+  }else{
+    el.classList.remove('show');
+  }
+}
+
+// ===== Render All =====
+function renderAll(){
+  renderSidebar();
+  renderTopAlert();
+  renderCurrentTab();
+  checkExportReminder();
+}
+
+// ===== Sample Data =====
+function loadSampleData(){
+  const p1=genId(),p2=genId(),now=Date.now();
+  state.projects=[
+    {id:p1,name:'官网改版',currentStep:'前端页面开发中',nextStep:'联调测试',blocked:false,blockedNote:'',createdAt:now-86400000*5,updatedAt:now-86400000*5},
+    {id:p2,name:'数据中台',currentStep:'接口对接',nextStep:'性能压测',blocked:true,blockedNote:'等运维分配测试服务器，已催3次',createdAt:now-86400000*8,updatedAt:now-86400000*8},
+  ];
+  state.todos=[
+    {id:genId(),title:'整理Q3季度汇报材料',priority:'P0',deadline:dateStr(-1),done:false,createdAt:now-86400000*2,completedAt:null,updatedAt:now-86400000*2,projectId:p1,deferredCount:1,journal:[
+      {date:dateStr(-3),content:'收集了各部门Q3数据，发现销售部的数据格式不统一，需要找他们确认',createdAt:now-86400000*3},
+      {date:dateStr(-2),content:'销售部已回复，数据整理中。汇报框架已搭好，先填销售和市场部分',createdAt:now-86400000*2},
+    ]},
+    {id:genId(),title:'回复客户合同邮件',priority:'P1',deadline:todayStr(),done:false,createdAt:now-86400000,completedAt:null,updatedAt:now-86400000,projectId:null,deferredCount:0,journal:[]},
+    {id:genId(),title:'准备周五产品评审会PPT',priority:'P1',deadline:dateStr(3),done:false,createdAt:now-86400000,completedAt:null,updatedAt:now-86400000,projectId:p1,deferredCount:0,journal:[
+      {date:dateStr(-1),content:'产品经理给了新版需求文档，变化不少，PPT可能需要大改',createdAt:now-86400000},
+    ]},
+    {id:genId(),title:'更新项目技术文档',priority:'P2',deadline:dateStr(4),done:false,createdAt:now-86400000,completedAt:null,updatedAt:now-86400000,projectId:p2,deferredCount:0,journal:[]},
+    {id:genId(),title:'完成需求文档评审',priority:'P1',deadline:dateStr(-1),done:true,createdAt:now-86400000*3,completedAt:now-86400000,updatedAt:now-86400000,projectId:p1,deferredCount:0,journal:[
+      {date:dateStr(-4),content:'会议定在下午3点，提前把评审意见整理好',createdAt:now-86400000*4},
+      {date:dateStr(-3),content:'评审通过了，产品确认下周一联调，已同步给开发',createdAt:now-86400000*3},
+    ]},
+    {id:genId(),title:'整理桌面文件',priority:'P3',deadline:dateStr(7),done:false,createdAt:now-86400000,completedAt:null,updatedAt:now-86400000,projectId:null,deferredCount:0,journal:[]},
+  ];
+  state.notes=[
+    {id:genId(),content:'可以考虑用自动化脚本处理重复性报表，省下的时间用来做深度分析',tags:['效率','想法'],createdAt:now-86400000*2,updatedAt:now-86400000*2},
+    {id:genId(),content:'竞品分析：对手的新功能上线了，交互做得很流畅，我们需要加快节奏',tags:['竞品','urgent'],createdAt:now-86400000,updatedAt:now-86400000},
+    {id:genId(),content:'团队周会可以改成站会形式，15分钟搞定，留出更多时间执行',tags:['管理','效率'],createdAt:now-3600000*3,updatedAt:now-3600000*3},
+  ];
+  save();
+}
+
+// ===== Init =====
+async function init(){
+  load();
+  if(!localStorage.getItem(SK.sample)&&state.todos.length===0&&state.notes.length===0&&state.projects.length===0){
+    loadSampleData();
+  }
+  renderAll();
+  initGistSync(); // 异步初始化云端，不阻塞页面渲染
+}
+init();
+</script>
+</body>
+</html>
