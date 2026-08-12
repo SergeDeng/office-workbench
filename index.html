@@ -927,12 +927,8 @@ function renderFocus(){
 
   // Sort today's todos: overdue first, then by priority
   const priorityOrder={P0:0,P1:1,P2:2,P3:3};
-  const sortedToday=[...todayTodos].sort((a,b)=>{
-    const aOver=a.deadline&&daysOverdue(a.deadline)>0?0:1;
-    const bOver=b.deadline&&daysOverdue(b.deadline)>0?0:1;
-    if(aOver!==bOver)return aOver-bOver;
-    return (priorityOrder[a.priority]||99)-(priorityOrder[b.priority]||99);
-  });
+  // Sort by 轻重缓急 only: 紧急(P0) > 重要(P1) > 一般(P2) > 低(P3), top to bottom
+  const sortedToday=[...todayTodos].sort((a,b)=>(priorityOrder[a.priority]||99)-(priorityOrder[b.priority]||99));
 
   let html='';
 
@@ -1002,7 +998,7 @@ function renderFocus(){
       if(t.deferredCount>0)html+=` · 已顺延 ${t.deferredCount} 次`;
       html+=`</div></div>
         <div class="urgent-actions" onclick="event.stopPropagation()">
-          <span class="urgent-priority-badge" style="background:#ffffffcc;color:${urgencyColor};border:1px solid ${urgencyColor}55">${pLabel}</span>
+          <span class="priority-badge priority-${t.priority}">${pLabel}</span>
           <button class="btn btn-sm urgent-btn-done" onclick="toggleTodoFocus('${t.id}')" title="完成">${IC.check} 完成</button>
           <button class="btn btn-sm urgent-btn-defer" onclick="deferTodo('${t.id}')" title="顺延到明天">${IC.arrow} 顺延</button>
         </div>
