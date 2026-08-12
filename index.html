@@ -389,9 +389,9 @@ a{color:var(--primary);text-decoration:none}
 .focus-empty svg{display:block;margin:0 auto 8px;opacity:.4}
 
 /* Focus task card (combined from both reference images) */
-.focus-card{display:flex;align-items:flex-start;gap:10px;padding:12px 18px;border-bottom:1px solid var(--border-light);transition:background .12s}
+.focus-card{display:flex;align-items:flex-start;gap:10px;padding:12px 18px;border-bottom:1px solid var(--border-light);transition:filter .12s}
 .focus-card:last-child{border-bottom:none}
-.focus-card:hover{background:var(--border-light)}
+.focus-card:hover{filter:brightness(0.97)}
 .focus-card-priority-bar{width:3px;border-radius:2px;flex-shrink:0;margin-top:4px;height:calc(100% - 8px);align-self:stretch}
 .focus-card-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
 .focus-card-top{display:flex;align-items:center;gap:8px}
@@ -403,6 +403,8 @@ a{color:var(--primary);text-decoration:none}
 .focus-card-title{font-size:14px;font-weight:500;color:var(--text);cursor:pointer;line-height:1.4}
 .focus-card-title:hover{color:var(--primary)}
 .focus-card-tags{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.focus-card-tags .project-tag-outline{font-size:11px;line-height:1.4;display:inline-flex;align-items:center;gap:3px;color:var(--text-muted);border:1px solid var(--border);background:var(--card);padding:1px 7px;border-radius:10px;white-space:nowrap}
+.focus-card-tags .project-tag-outline svg{opacity:.7}
 .focus-card-meta{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-light);margin-top:2px}
 .focus-card-actions{display:flex;gap:4px;flex-shrink:0;padding-top:2px}
 
@@ -808,6 +810,13 @@ function isThisWeek(s){const r=getWeekRange();return s>=r.start&&s<=r.end}
 function daysOverdue(s){const t=todayStr();if(s>=t)return 0;const d1=new Date(s),d2=new Date(t);return Math.floor((d2-d1)/86400000)}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function getProjectName(pid){const p=state.projects.find(x=>x.id===pid);return p?p.name:''}
+// Urgency background tint: overdue/P0 red, P1 orange, P2 blue, P3 gray
+function urgencyTint(priority,isOver){
+  if(isOver||priority==='P0')return '#fef2f2';
+  if(priority==='P1')return '#fff7ed';
+  if(priority==='P2')return '#eff6ff';
+  return '#f8fafc';
+}
 
 // ===== Render: Sidebar =====
 function renderSidebar(){
@@ -956,14 +965,9 @@ function renderFocus(){
   </div>`;
 
   // === Today's Tasks Overview (今天要处理的) ===
-  // Sort: overdue first, then by priority
+  // Sort by 轻重缓急 (priority P0>P1>P2>P3)
   const ovOrder={P0:0,P1:1,P2:2,P3:3};
-  const sortedOverview=[...todayTodos].sort((a,b)=>{
-    const aOver=a.deadline&&daysOverdue(a.deadline)>0?0:1;
-    const bOver=b.deadline&&daysOverdue(b.deadline)>0?0:1;
-    if(aOver!==bOver)return aOver-bOver;
-    return (ovOrder[a.priority]||99)-(ovOrder[b.priority]||99);
-  });
+  const sortedOverview=[...todayTodos].sort((a,b)=>(ovOrder[a.priority]||99)-(ovOrder[b.priority]||99));
   html+=`<div class="focus-section">
     <div class="focus-section-header urgent-header">
       <div class="focus-section-title">
@@ -984,13 +988,9 @@ function renderFocus(){
       const projName=getProjectName(t.projectId);
       // Urgency color: red for overdue or P0, orange for P1, else pColor
       const urgencyColor=(isOver||t.priority==='P0')?'#ef4444':(t.priority==='P1'?'#f97316':pColor);
-      // Priority display label with urgency qualifier
-      let priDisplay=pLabel;
-      if(isOver)priDisplay+='重要';
-      else if(t.priority==='P2')priDisplay='不紧急';
-      else if(t.priority==='P3')priDisplay='不紧急';
+      const rowBg=urgencyTint(t.priority,isOver);
 
-      html+=`<div class="urgent-row" onclick="goToTodosToday('${t.projectId||''}')">
+      html+=`<div class="urgent-row" style="background:${rowBg}" onclick="goToTodosToday('${t.projectId||''}')">
         <div class="urgent-dot" style="background:${urgencyColor}"></div>
         <div class="urgent-body">
           <div class="urgent-title">${esc(t.title)}</div>
@@ -1002,7 +1002,7 @@ function renderFocus(){
       if(t.deferredCount>0)html+=` · 已顺延 ${t.deferredCount} 次`;
       html+=`</div></div>
         <div class="urgent-actions" onclick="event.stopPropagation()">
-          <span class="urgent-priority-badge" style="background:${isOver||t.priority==='P0'?'#fef2f2':(t.priority==='P1'?'#fffbeb':'#f0fdf4')};color:${urgencyColor};border:1px solid ${urgencyColor}30">${priDisplay}</span>
+          <span class="urgent-priority-badge" style="background:#ffffffcc;color:${urgencyColor};border:1px solid ${urgencyColor}55">${pLabel}</span>
           <button class="btn btn-sm urgent-btn-done" onclick="toggleTodoFocus('${t.id}')" title="完成">${IC.check} 完成</button>
           <button class="btn btn-sm urgent-btn-defer" onclick="deferTodo('${t.id}')" title="顺延到明天">${IC.arrow} 顺延</button>
         </div>
@@ -1033,13 +1033,14 @@ function renderFocus(){
       const pLabel=PRIORITY_LABELS[t.priority]||'一般';
       const projName=getProjectName(t.projectId);
       const deferInfo=t.deferredCount>0?`顺延 ${t.deferredCount} 次`:'';
+      const cardBg=urgencyTint(t.priority,isOverdue);
 
       // Status note line
       let statusNote='';
       if(isOverdue)statusNote=`<span style="color:var(--danger);font-weight:600">逾期 ${daysOverdue(t.deadline)} 天</span>`;
       if(t.deferredCount>0)statusNote+=(statusNote?' · ':'')+'已顺延 '+t.deferredCount+' 次';
 
-      html+=`<div class="focus-card">
+      html+=`<div class="focus-card" style="background:${cardBg}">
         <div class="focus-card-priority-bar" style="background:${pColor}"></div>
         <div class="focus-card-check${t.done?' checked':''}" onclick="toggleTodoFocus('${t.id}')">${t.done?IC.check:''}</div>
         <div class="focus-card-body">
@@ -1620,7 +1621,7 @@ function openTodoModal(id, presetProjectId){
       <div class="todo-edit-title">${title}</div>
       <div class="todo-edit-field"><label>要做什么</label><input id="editTodoTitle" value="${t?esc(t.title):''}" placeholder="输入任务内容..."></div>
       <div class="todo-edit-field"><label>轻重缓急</label><select id="editTodoPriority">
-        <option value="P0" ${t&&t.priority==='P0'?'selected':''}>紧急重要（马上做）</option>
+        <option value="P0" ${t&&t.priority==='P0'?'selected':''}>紧急（马上做）</option>
         <option value="P1" ${(!t||t.priority==='P1')?'selected':''}>重要（尽快做）</option>
         <option value="P2" ${t&&t.priority==='P2'?'selected':''}>一般（有空做）</option>
         <option value="P3" ${t&&t.priority==='P3'?'selected':''}>低优先级</option>
