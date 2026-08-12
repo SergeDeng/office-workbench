@@ -75,6 +75,23 @@ a{color:var(--primary);text-decoration:none}
 .alert-empty{text-align:center;padding:12px;font-size:13px;color:var(--text-light)}
 .alert-empty svg{margin-bottom:4px}
 
+/* ===== Urgent Task Rows (今天要处理的) ===== */
+.urgent-header{background:var(--danger-bg)!important;border-color:#fca5a5!important}
+.urgent-task-list{display:flex;flex-direction:column;gap:0}
+.urgent-row{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border-light);cursor:pointer;transition:background .15s}
+.urgent-row:hover{background:var(--hover)}
+.urgent-row:last-child{border-bottom:none}
+.urgent-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:2px}
+.urgent-body{flex:1;min-width:0}
+.urgent-title{font-size:14px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px}
+.urgent-meta{font-size:11.5px;color:var(--text-light);display:flex;flex-wrap:wrap;gap:2px;line-height:1.5}
+.urgent-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.urgent-priority-badge{font-size:11px;font-weight:600;padding:3px 9px;border-radius:12px;white-space:nowrap}
+.urgent-btn-done{color:var(--success)!important;border-color:var(--success)30!important;background:var(--success-bg)!important}
+.urgent-btn-done:hover{background:var(--success)!important;color:#fff!important}
+.urgent-btn-defer{color:var(--text-muted)!important;border-color:var(--border)!important;background:transparent!important}
+.urgent-btn-defer:hover{border-color:var(--primary)!important;color:var(--primary)!important}
+
 /* ===== Main Layout ===== */
 .main{display:flex;flex:1;overflow:hidden}
 
@@ -938,31 +955,59 @@ function renderFocus(){
     </div>
   </div>`;
 
-  // === Today's Tasks Overview (moved from top alert) ===
+  // === Today's Tasks Overview (今天要处理的) ===
+  // Sort: overdue first, then by priority
   const ovOrder={P0:0,P1:1,P2:2,P3:3};
-  const sortedOverview=[...todayTodos].sort((a,b)=>(ovOrder[a.priority]||99)-(ovOrder[b.priority]||99));
+  const sortedOverview=[...todayTodos].sort((a,b)=>{
+    const aOver=a.deadline&&daysOverdue(a.deadline)>0?0:1;
+    const bOver=b.deadline&&daysOverdue(b.deadline)>0?0:1;
+    if(aOver!==bOver)return aOver-bOver;
+    return (ovOrder[a.priority]||99)-(ovOrder[b.priority]||99);
+  });
   html+=`<div class="focus-section">
-    <div class="focus-section-header">
+    <div class="focus-section-header urgent-header">
       <div class="focus-section-title">
         ⚠️ 今天要处理的
-        <span style="font-size:12px;font-weight:400;color:var(--text-light)">含逾期 ${overdueTodos.length} 件 · 共 ${todayTodos.length} 件，点「处理」去今天待办</span>
+        <span style="font-size:12px;font-weight:400;color:var(--danger)">逾期 ${overdueTodos.length} · 卡住 ${stuckProjects.length}</span>
       </div>
-      <button class="btn btn-sm" onclick="goToTodosToday()">${IC.todo}全部处理</button>
+      <button class="btn btn-sm btn-outline" onclick="deferAllOverdue()">${IC.arrow} 全部顺延到明天</button>
     </div>`;
   if(todayTodos.length===0){
     html+=`<div class="focus-empty">${IC.ok}<p>今天没有待处理的任务 🎉</p></div>`;
   }else{
-    html+=`<div class="alert-card today">
-      <div class="alert-card-title">⚠️ 今天要处理的 <span class="count">${todayTodos.length}</span></div>`;
-    sortedOverview.slice(0,10).forEach(t=>{
+    html+=`<div class="urgent-task-list">`;
+    sortedOverview.forEach(t=>{
       const isOver=t.deadline&&daysOverdue(t.deadline)>0;
-      html+=`<div class="alert-item">
-        <span class="alert-item-name">${esc(t.title)}</span>
-        <span class="alert-item-meta">${PRIORITY_LABELS[t.priority]||'一般'}${t.deadline?(' · '+(isOver?('逾期'+daysOverdue(t.deadline)+'天'):fmtDate(t.deadline))):''}${t.deferredCount>0?' · 顺延'+t.deferredCount+'次':''}</span>
-        <button class="btn btn-sm" onclick="goToTodosToday('${t.projectId||''}')">处理</button>
+      const overdueDays=isOver?daysOverdue(t.deadline):0;
+      const pColor=PRIORITY_COLORS[t.priority]||'#94a3b8';
+      const pLabel=PRIORITY_LABELS[t.priority]||'一般';
+      const projName=getProjectName(t.projectId);
+      // Urgency color: red for overdue or P0, orange for P1, else pColor
+      const urgencyColor=(isOver||t.priority==='P0')?'#ef4444':(t.priority==='P1'?'#f97316':pColor);
+      // Priority display label with urgency qualifier
+      let priDisplay=pLabel;
+      if(isOver)priDisplay+='重要';
+      else if(t.priority==='P2')priDisplay='不紧急';
+      else if(t.priority==='P3')priDisplay='不紧急';
+
+      html+=`<div class="urgent-row" onclick="goToTodosToday('${t.projectId||''}')">
+        <div class="urgent-dot" style="background:${urgencyColor}"></div>
+        <div class="urgent-body">
+          <div class="urgent-title">${esc(t.title)}</div>
+          <div class="urgent-meta">
+            待办`;
+      if(projName)html+=` · ${esc(projName)}`;
+      if(t.deadline)html+=` · 原定 ${t.deadline}`;
+      if(isOver)html+=` · <span style="color:var(--danger);font-weight:600">逾期 ${overdueDays} 天</span>`;
+      if(t.deferredCount>0)html+=` · 已顺延 ${t.deferredCount} 次`;
+      html+=`</div></div>
+        <div class="urgent-actions" onclick="event.stopPropagation()">
+          <span class="urgent-priority-badge" style="background:${isOver||t.priority==='P0'?'#fef2f2':(t.priority==='P1'?'#fffbeb':'#f0fdf4')};color:${urgencyColor};border:1px solid ${urgencyColor}30">${priDisplay}</span>
+          <button class="btn btn-sm urgent-btn-done" onclick="toggleTodoFocus('${t.id}')" title="完成">${IC.check} 完成</button>
+          <button class="btn btn-sm urgent-btn-defer" onclick="deferTodo('${t.id}')" title="顺延到明天">${IC.arrow} 顺延</button>
+        </div>
       </div>`;
     });
-    html+= todayTodos.length>10?`<div class="alert-more">还有 ${todayTodos.length-10} 件，见下方「今天的清单」</div>`:'';
     html+=`</div>`;
   }
   html+=`</div>`;
@@ -1637,6 +1682,18 @@ function deferTodo(id){
   t.deadline=dateStr(1);
   t.deferredCount=(t.deferredCount||0)+1;
   t.updatedAt=Date.now();
+  save();renderAll();
+  scheduleGistUpload();
+}
+function deferAllOverdue(){
+  const today=todayStr();
+  const overdue=state.todos.filter(t=>!t.done&&t.deadline&&daysOverdue(t.deadline)>0);
+  if(overdue.length===0)return;
+  overdue.forEach(t=>{
+    t.deadline=dateStr(1);
+    t.deferredCount=(t.deferredCount||0)+1;
+    t.updatedAt=Date.now();
+  });
   save();renderAll();
   scheduleGistUpload();
 }
