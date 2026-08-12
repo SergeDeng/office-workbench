@@ -829,15 +829,13 @@ function renderSidebar(){
 // ===== Render: Top Alert =====
 function renderTopAlert(){
   const grid=document.getElementById('topAlertGrid');
-  const today=todayStr();
   const priorityOrder={P0:0,P1:1,P2:2,P3:3};
   const overdue=state.todos.filter(t=>!t.done&&t.deadline&&daysOverdue(t.deadline)>0);
-  const todayTasks=state.todos.filter(t=>!t.done&&(t.deadline===today||!t.deadline));
   const stuck=state.projects.filter(p=>p.blocked);
 
-  if(overdue.length===0&&todayTasks.length===0&&stuck.length===0){
+  if(overdue.length===0&&stuck.length===0){
     grid.innerHTML=`<div class="alert-card" style="grid-column:1/-1">
-      <div class="alert-empty">${IC.ok}<div>今天没有需要处理的任务，状态不错 🎉</div></div>
+      <div class="alert-empty">${IC.ok}<div>没有逾期任务，也没有卡住的项目，状态不错 🎉</div></div>
     </div>`;
     return;
   }
@@ -856,21 +854,6 @@ function renderTopAlert(){
     </div>`;
   }
 
-  let todayHtml='';
-  if(todayTasks.length>0){
-    const sorted=[...todayTasks].sort((a,b)=>(priorityOrder[a.priority]||99)-(priorityOrder[b.priority]||99));
-    todayHtml=`<div class="alert-card today">
-      <div class="alert-card-title">${IC.todo}今天的任务 <span class="count">${todayTasks.length}</span></div>
-      ${sorted.slice(0,8).map(t=>`
-        <div class="alert-item">
-          <span class="alert-item-name">${esc(t.title)}</span>
-          <span class="alert-item-meta">${PRIORITY_LABELS[t.priority]||'一般'}${t.deadline?(' · '+fmtDate(t.deadline)):''}${t.deferredCount>0?' · 顺延'+t.deferredCount+'次':''}</span>
-          <button class="btn btn-sm" onclick="switchTab('focus')">处理</button>
-        </div>`).join('')}
-      ${todayTasks.length>8?`<div class="alert-more">还有 ${todayTasks.length-8} 件，见下方「今天的清单」</div>`:''}
-    </div>`;
-  }
-
   let stuckHtml='';
   if(stuck.length>0){
     stuckHtml=`<div class="alert-card stuck">
@@ -884,7 +867,7 @@ function renderTopAlert(){
     </div>`;
   }
 
-  grid.innerHTML=overdueHtml+todayHtml+stuckHtml;
+  grid.innerHTML=overdueHtml+stuckHtml;
 }
 
 // ===== Render: Today Focus =====
@@ -950,10 +933,39 @@ function renderFocus(){
       <span><span class="focus-stat-num">${activeProjects}</span> 个项目在跑</span>
     </div>
     <div class="focus-actions">
-      <button class="btn btn-sm" onclick="switchTab('todos')">${IC.todo}去待办</button>
+      <button class="btn btn-sm" onclick="goToTodosToday()">${IC.todo}去待办</button>
       <button class="btn btn-sm" onclick="exportData()">${IC.arrow}导出备份</button>
     </div>
   </div>`;
+
+  // === Today's Tasks Overview (moved from top alert) ===
+  const ovOrder={P0:0,P1:1,P2:2,P3:3};
+  const sortedOverview=[...todayTodos].sort((a,b)=>(ovOrder[a.priority]||99)-(ovOrder[b.priority]||99));
+  html+=`<div class="focus-section">
+    <div class="focus-section-header">
+      <div class="focus-section-title">
+        🟢 今天的任务
+        <span style="font-size:12px;font-weight:400;color:var(--text-light)">共 ${todayTodos.length} 件，点「处理」去今天待办</span>
+      </div>
+      <button class="btn btn-sm" onclick="goToTodosToday()">${IC.todo}全部处理</button>
+    </div>`;
+  if(todayTodos.length===0){
+    html+=`<div class="focus-empty">${IC.ok}<p>今天没有待处理的任务 🎉</p></div>`;
+  }else{
+    html+=`<div class="alert-card today">
+      <div class="alert-card-title">${IC.todo}今天的任务 <span class="count">${todayTodos.length}</span></div>`;
+    sortedOverview.slice(0,10).forEach(t=>{
+      const isOver=t.deadline&&daysOverdue(t.deadline)>0;
+      html+=`<div class="alert-item">
+        <span class="alert-item-name">${esc(t.title)}</span>
+        <span class="alert-item-meta">${PRIORITY_LABELS[t.priority]||'一般'}${t.deadline?(' · '+(isOver?('逾期'+daysOverdue(t.deadline)+'天'):fmtDate(t.deadline))):''}${t.deferredCount>0?' · 顺延'+t.deferredCount+'次':''}</span>
+        <button class="btn btn-sm" onclick="goToTodosToday()">处理</button>
+      </div>`;
+    });
+    html+= todayTodos.length>10?`<div class="alert-more">还有 ${todayTodos.length-10} 件，见下方「今天的清单」</div>`:'';
+    html+=`</div>`;
+  }
+  html+=`</div>`;
 
   // === Today's Task List Section ===
   html+=`<div class="focus-section">
@@ -986,7 +998,7 @@ function renderFocus(){
         <div class="focus-card-priority-bar" style="background:${pColor}"></div>
         <div class="focus-card-check${t.done?' checked':''}" onclick="toggleTodoFocus('${t.id}')">${t.done?IC.check:''}</div>
         <div class="focus-card-body">
-          <div class="focus-card-title" onclick="switchTab('todos')">${esc(t.title)}</div>
+          <div class="focus-card-title" onclick="goToTodosToday()">${esc(t.title)}</div>
           <div class="focus-card-tags">
             <span class="priority-badge priority-${t.priority}">${pLabel}</span>`;
       if(t.deadline){
@@ -1001,7 +1013,7 @@ function renderFocus(){
       }
       html+=`</div>
         <div class="focus-card-actions">
-          <button class="btn btn-sm" onclick="switchTab('todos')" title="查看详情">${IC.arrow}</button>
+          <button class="btn btn-sm" onclick="goToTodosToday()" title="查看详情">${IC.arrow}</button>
           <button class="btn btn-sm" onclick="openTodoModal('${t.id}')" title="编辑">${IC.edit}</button>
           <button class="btn btn-sm btn-danger" onclick="deleteTodo('${t.id}')" title="删除">${IC.trash}</button>
         </div>
@@ -1861,6 +1873,10 @@ function renderCurrentTab(){
 function setTodoFilter(filter){
   state.todoFilter=filter;
   renderTodos();
+}
+function goToTodosToday(){
+  state.todoFilter='today';
+  switchTab('todos');
 }
 function setProjectFilter(pid){
   state.projectFilter=pid;
