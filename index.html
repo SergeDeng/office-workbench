@@ -927,8 +927,13 @@ function renderFocus(){
 
   // Sort today's todos: overdue first, then by priority
   const priorityOrder={P0:0,P1:1,P2:2,P3:3};
-  // Sort by 轻重缓急 only: 紧急(P0) > 重要(P1) > 一般(P2) > 低(P3), top to bottom
-  const sortedToday=[...todayTodos].sort((a,b)=>(priorityOrder[a.priority]||99)-(priorityOrder[b.priority]||99));
+  // Sort: 逾期置顶, then by 轻重缓急 (P0>P1>P2>P3), top to bottom
+  const sortedToday=[...todayTodos].sort((a,b)=>{
+    const aOver=a.deadline&&daysOverdue(a.deadline)>0?0:1;
+    const bOver=b.deadline&&daysOverdue(b.deadline)>0?0:1;
+    if(aOver!==bOver)return aOver-bOver;
+    return (priorityOrder[a.priority]||99)-(priorityOrder[b.priority]||99);
+  });
 
   let html='';
 
@@ -961,9 +966,14 @@ function renderFocus(){
   </div>`;
 
   // === Today's Tasks Overview (今天要处理的) ===
-  // Sort by 轻重缓急 (priority P0>P1>P2>P3)
+  // Sort: 逾期置顶, then by 轻重缓急 (priority P0>P1>P2>P3)
   const ovOrder={P0:0,P1:1,P2:2,P3:3};
-  const sortedOverview=[...todayTodos].sort((a,b)=>(ovOrder[a.priority]||99)-(ovOrder[b.priority]||99));
+  const sortedOverview=[...todayTodos].sort((a,b)=>{
+    const aOver=a.deadline&&daysOverdue(a.deadline)>0?0:1;
+    const bOver=b.deadline&&daysOverdue(b.deadline)>0?0:1;
+    if(aOver!==bOver)return aOver-bOver;
+    return (ovOrder[a.priority]||99)-(ovOrder[b.priority]||99);
+  });
   html+=`<div class="focus-section">
     <div class="focus-section-header urgent-header">
       <div class="focus-section-title">
@@ -982,12 +992,11 @@ function renderFocus(){
       const pColor=PRIORITY_COLORS[t.priority]||'#94a3b8';
       const pLabel=PRIORITY_LABELS[t.priority]||'一般';
       const projName=getProjectName(t.projectId);
-      // Urgency color: red for overdue or P0, orange for P1, else pColor
-      const urgencyColor=(isOver||t.priority==='P0')?'#ef4444':(t.priority==='P1'?'#f97316':pColor);
+      // Dot color matches priority text color (PRIORITY_COLORS)
       const rowBg=urgencyTint(t.priority,isOver);
 
       html+=`<div class="urgent-row" style="background:${rowBg}" onclick="goToTodosToday('${t.projectId||''}')">
-        <div class="urgent-dot" style="background:${urgencyColor}"></div>
+        <div class="urgent-dot" style="background:${pColor}"></div>
         <div class="urgent-body">
           <div class="urgent-title">${esc(t.title)}</div>
           <div class="urgent-meta">
