@@ -358,6 +358,10 @@ a{color:var(--primary);text-decoration:none}
 .stuck-list .stuck-icon{color:var(--warning);flex-shrink:0;margin-top:2px}
 .stuck-list .stuck-icon.danger{color:var(--danger)}
 
+/* Weekly report export */
+.review-toolbar{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.report-preview{width:100%;height:340px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);box-sizing:border-box;white-space:pre;line-height:1.5;resize:vertical}
+
 /* ===== Today Focus Page ===== */
 .focus-greeting{background:linear-gradient(135deg,#f0fdfa 0%,#eff6ff 50%,#fefce8 100%);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;margin-bottom:16px;position:relative;overflow:hidden}
 .focus-greeting::after{content:'';position:absolute;right:-20px;top:-20px;width:120px;height:120px;border-radius:50%;background:rgba(13,148,136,.06)}
@@ -1538,7 +1542,11 @@ function renderReview(){
   const deferredTodos=state.todos.filter(t=>!t.done&&t.deferredCount>0);
   
   // Stat cards
-  let html=`<div class="stat-grid">
+  let html=`<div class="review-toolbar">
+    <button class="btn btn-sm btn-primary" onclick="openWeeklyReportModal()">📤 导出周报</button>
+    <span style="font-size:12px;color:var(--text-muted)">汇总该时段内有进展的任务与计划完成（含逾期）的任务，按项目生成 Markdown 报告</span>
+  </div>
+  <div class="stat-grid">
     <div class="stat-card"><div class="stat-value">${completedThisWeek.length}</div><div class="stat-label">本周完成</div></div>
     <div class="stat-card"><div class="stat-value">${state.todos.filter(t=>!t.done).length}</div><div class="stat-label">待办剩余</div></div>
     <div class="stat-card"><div class="stat-value">${activeProjects.length}</div><div class="stat-label">进行中项目</div></div>
@@ -1577,6 +1585,181 @@ function renderReview(){
   html+=`</div>`;
   
   c.innerHTML=html;
+}
+
+// ===== Export Weekly Report =====
+function openWeeklyReportModal(){
+  const wr=getWeekRange();
+  const overlay=document.createElement('div');
+  overlay.className='todo-edit-overlay';
+  overlay.id='weeklyReportOverlay';
+  overlay.onclick=function(e){if(e.target===overlay)closeWeeklyReportModal()};
+  overlay.innerHTML=`
+    <div class="todo-edit-dialog" style="max-width:700px">
+      <div class="todo-edit-title">📤 导出周报</div>
+      <p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;line-height:1.6">选择统计区间，系统将汇总该时段内有进展记录更新的任务，以及计划在该时段完成（含逾期）的任务，按项目生成 Markdown 周报。</p>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px">
+        <div class="todo-edit-field" style="flex:1;min-width:180px"><label>起始日期</label><input type="date" id="reportStart" value="${wr.start}"></div>
+        <div class="todo-edit-field" style="flex:1;min-width:180px"><label>结束日期</label><input type="date" id="reportEnd" value="${todayStr()}"></div>
+      </div>
+      <div class="todo-edit-actions" style="justify-content:flex-start">
+        <button class="btn btn-sm btn-primary" onclick="generateWeeklyReport()">生成周报</button>
+        <button class="btn btn-sm" onclick="closeWeeklyReportModal()">取消</button>
+      </div>
+      <div id="reportPreviewWrap" style="display:none;margin-top:16px">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+          <button class="btn btn-sm" onclick="downloadWeeklyReport()">⬇ 下载 .md</button>
+          <button class="btn btn-sm" onclick="copyWeeklyReport()">📋 复制</button>
+        </div>
+        <textarea id="reportPreview" class="report-preview" readonly></textarea>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function closeWeeklyReportModal(){
+  const el=document.getElementById('weeklyReportOverlay');
+  if(el)el.remove();
+}
+
+function generateWeeklyReport(){
+  const start=document.getElementById('reportStart').value||todayStr();
+  const end=document.getElementById('reportEnd').value||todayStr();
+  if(start>end){alert('起始日期不能晚于结束日期');return}
+
+  const PRI={P0:0,P1:1,P2:2,P3:3};
+
+  // A 类：该时段内有进展记录增加的任务
+  const progressMap=new Map();
+  state.todos.forEach(t=>{
+    const prog=(t.journal||[]).filter(j=>j.date>=start&&j.date<=end);
+    if(prog.length>0) progressMap.set(t.id,prog);
+  });
+
+  // B 类：deadline 落在时段内（含逾期 / 已完成 / 未完成）
+  const dueMap=new Map();
+  state.todos.forEach(t=>{
+    if(t.deadline&&t.deadline>=start&&t.deadline<=end) dueMap.set(t.id,t);
+  });
+
+  // 合并去重
+  const merged=new Map();
+  progressMap.forEach((prog,id)=>merged.set(id,{todo:state.todos.find(x=>x.id===id),progress:prog,inDue:dueMap.has(id)}));
+  dueMap.forEach((t,id)=>{ if(!merged.has(id)) merged.set(id,{todo:t,progress:progressMap.get(id)||[],inDue:true}); });
+
+  const allTasks=[...merged.values()].map(v=>v.todo);
+  const progressCount=progressMap.size;
+  const dueCount=dueMap.size;
+  const doneCount=allTasks.filter(t=>t.done).length;
+  const overdueNow=allTasks.filter(t=>!t.done&&t.deadline&&daysOverdue(t.deadline)>0).length;
+
+  // 按项目分组
+  const groups=new Map();
+  merged.forEach((v,id)=>{
+    const pid=v.todo.projectId||null;
+    if(!groups.has(pid))groups.set(pid,[]);
+    groups.get(pid).push(v);
+  });
+  const groupKeys=[...groups.keys()].sort((a,b)=>{
+    if(a===null)return 1; if(b===null)return -1;
+    return getProjectName(a).localeCompare(getProjectName(b),'zh');
+  });
+
+  // 概览天数
+  let dayCount=1;
+  try{ dayCount=Math.floor((new Date(end)-new Date(start))/86400000)+1; }catch(e){}
+  if(dayCount<1)dayCount=1;
+
+  let md=`# 工作周报（${start} ~ ${end}）\n\n`;
+  md+=`> 由「办公工作台」自动生成 · 生成日期 ${todayStr()}\n\n`;
+  md+=`## 一、概览\n\n`;
+  md+=`- 统计区间：${start} 至 ${end}（共 ${dayCount} 天）\n`;
+  md+=`- 涉及任务总数：**${allTasks.length}**\n`;
+  md+=`- 期间有进展更新的任务：${progressCount} 个\n`;
+  md+=`- 计划在该区间完成（含逾期）的任务：${dueCount} 个（已完成 ${doneCount} 个 / 未完成 ${allTasks.length-doneCount} 个）\n`;
+  if(overdueNow>0) md+=`- 截至今日仍逾期：${overdueNow} 个 ⚠️\n`;
+  md+=`\n`;
+
+  md+=`## 二、按项目汇总\n\n`;
+  groupKeys.forEach(pid=>{
+    const name=pid?getProjectName(pid):'未关联项目';
+    md+=`### ${pid?'项目':'▫️'}：${name}\n\n`;
+    if(pid){
+      const p=state.projects.find(x=>x.id===pid);
+      if(p){
+        const steps=[];
+        if(p.currentStep)steps.push(`当前进展：${p.currentStep}`);
+        if(p.nextStep)steps.push(`下一步：${p.nextStep}`);
+        if(p.blocked)steps.push(`状态：⚠️ 卡住（${p.blockedNote||'未说明'}）`);
+        if(steps.length)md+=`> ${steps.join('；')}\n\n`;
+      }
+    }
+    const entries=groups.get(pid).slice().sort((x,y)=>(PRI[x.todo.priority]??9)-(PRI[y.todo.priority]??9));
+    entries.forEach(v=>{
+      const t=v.todo;
+      const pLabel=PRIORITY_LABELS[t.priority]||t.priority;
+      let status='';
+      if(t.done)status='✅ 已完成';
+      else if(t.deadline&&daysOverdue(t.deadline)>0)status=`⚠️ 逾期 ${daysOverdue(t.deadline)} 天`;
+      else status='⬜ 待办';
+      const dl=t.deadline?`（截止 ${t.deadline}）`:'（无截止日期）';
+      const why=[];
+      if(v.progress.length>0)why.push('📝有进展');
+      if(v.inDue)why.push('🎯计划完成');
+      md+=`- **[${pLabel}] ${t.title}** ${dl} — ${status}${why.length?`（${why.join(' · ')}）`:''}\n`;
+      const prog=v.progress.slice().sort((a,b)=>a.date.localeCompare(b.date));
+      if(prog.length>0){
+        md+=`  - 进展记录：\n`;
+        prog.forEach(j=>{ md+=`    - ${j.date}：${j.content}\n`; });
+      }
+    });
+    md+=`\n`;
+  });
+
+  // 三、下周重点（未完成 / 逾期）
+  const pendingSorted=sortTodosUnified(allTasks.filter(t=>!t.done));
+  if(pendingSorted.length>0){
+    md+=`## 三、下周重点（未完成 / 逾期）\n\n`;
+    pendingSorted.forEach(t=>{
+      const pLabel=PRIORITY_LABELS[t.priority]||t.priority;
+      const proj=t.projectId?getProjectName(t.projectId):'未关联项目';
+      const od=t.deadline&&daysOverdue(t.deadline)>0?`逾期 ${daysOverdue(t.deadline)} 天`:(t.deadline?`截止 ${t.deadline}`:'无截止日期');
+      md+=`- [${pLabel}] ${t.title}（${proj}）— ${od}\n`;
+    });
+    md+=`\n`;
+  }
+
+  md+=`---\n\n*本报告由办公工作台自动汇总生成。*\n`;
+
+  window._weeklyReportMd=md;
+  document.getElementById('reportPreview').value=md;
+  document.getElementById('reportPreviewWrap').style.display='block';
+}
+
+function downloadWeeklyReport(){
+  const md=window._weeklyReportMd||'';
+  if(!md){alert('请先生成周报');return}
+  const start=document.getElementById('reportStart').value||'report';
+  const end=document.getElementById('reportEnd').value||'report';
+  const blob=new Blob([md],{type:'text/markdown;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`工作周报_${start}_${end}.md`;
+  document.body.appendChild(a);a.click();a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function copyWeeklyReport(){
+  const md=window._weeklyReportMd||'';
+  if(!md){alert('请先生成周报');return}
+  const ta=document.getElementById('reportPreview');
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(md).then(()=>alert('已复制到剪贴板')).catch(()=>{
+      if(ta){ta.select();document.execCommand('copy');} alert('已复制到剪贴板');
+    });
+  }else{
+    if(ta){ta.select();document.execCommand('copy');} alert('已复制到剪贴板');
+  }
 }
 
 // ===== Charts =====
