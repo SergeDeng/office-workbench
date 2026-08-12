@@ -868,7 +868,7 @@ function renderTopAlert(){
 
   let overdueHtml='';
   if(overdue.length>0){
-    const sorted=[...overdue].sort((a,b)=>(priorityOrder[a.priority]||99)-(priorityOrder[b.priority]||99));
+    const sorted=[...overdue].sort((a,b)=>(priorityOrder[a.priority]??99)-(priorityOrder[b.priority]||99));
     overdueHtml=`<div class="alert-card overdue">
       <div class="alert-card-title">${IC.warn}逾期任务 <span class="count">${overdue.length}</span></div>
       ${sorted.map(t=>`
@@ -935,7 +935,7 @@ function renderFocus(){
     const aOd=a.deadline?daysOverdue(a.deadline):0;
     const bOd=b.deadline?daysOverdue(b.deadline):0;
     if(aOd!==bOd)return bOd-aOd;
-    return (priorityOrder[a.priority]||99)-(priorityOrder[b.priority]||99);
+    return (priorityOrder[a.priority]??99)-(priorityOrder[b.priority]||99);
   });
 
   let html='';
@@ -978,7 +978,7 @@ function renderFocus(){
     const aOd=a.deadline?daysOverdue(a.deadline):0;
     const bOd=b.deadline?daysOverdue(b.deadline):0;
     if(aOd!==bOd)return bOd-aOd;
-    return (ovOrder[a.priority]||99)-(ovOrder[b.priority]||99);
+    return (ovOrder[a.priority]??99)-(ovOrder[b.priority]||99);
   });
   html+=`<div class="focus-section">
     <div class="focus-section-header urgent-header">
