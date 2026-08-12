@@ -809,6 +809,7 @@ function dateStr(off){const d=new Date();d.setDate(d.getDate()+off);return d.toI
 function todayStr(){return dateStr(0)}
 function fmtDate(s,createdAt){if(!s)return'';const m=s.slice(5,7),d=s.slice(8,10);let r=m+'月'+d+'日';if(createdAt){const dt=new Date(createdAt);const h=dt.getHours(),min=String(dt.getMinutes()).padStart(2,'0');r+=' '+h+':'+min}return r}
 function fmtRelative(ts){const diff=Date.now()-ts;const day=Math.floor(diff/86400000);if(day===0)return'今天';if(day===1)return'昨天';if(day<7)return day+'天前';return new Date(ts).toLocaleDateString('zh-CN')}
+function fmtDateTime(ts){if(!ts)return'';const d=new Date(ts);const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());}
 function getWeekRange(){const d=new Date();const day=d.getDay()||7;const mon=new Date(d);mon.setDate(d.getDate()-day+1);const sun=new Date(mon);sun.setDate(mon.getDate()+6);return{start:mon.toISOString().split('T')[0],end:sun.toISOString().split('T')[0]}}
 function isThisWeek(s){const r=getWeekRange();return s>=r.start&&s<=r.end}
 function daysOverdue(s){const t=todayStr();if(s>=t)return 0;const d1=new Date(s),d2=new Date(t);return Math.floor((d2-d1)/86400000)}
@@ -1698,6 +1699,7 @@ function generateWeeklyReport(){
     entries.forEach(v=>{
       const t=v.todo;
       const pLabel=PRIORITY_LABELS[t.priority]||t.priority;
+      const pColor=PRIORITY_COLORS[t.priority]||'#334155';
       let status='';
       if(t.done)status='✅ 已完成';
       else if(t.deadline&&daysOverdue(t.deadline)>0)status=`⚠️ 逾期 ${daysOverdue(t.deadline)} 天`;
@@ -1706,11 +1708,15 @@ function generateWeeklyReport(){
       const why=[];
       if(v.progress.length>0)why.push('📝有进展');
       if(v.inDue)why.push('🎯计划完成');
-      md+=`- **[${pLabel}] ${t.title}** ${dl} — ${status}${why.length?`（${why.join(' · ')}）`:''}\n`;
-      const prog=v.progress.slice().sort((a,b)=>a.date.localeCompare(b.date));
+      md+=`- **<span style="color:${pColor}">[${pLabel}]</span> ${t.title}** ${dl} — ${status}${why.length?`（${why.join(' · ')}）`:''}\n`;
+      const prog=v.progress.slice().sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
       if(prog.length>0){
         md+=`  - 进展记录：\n`;
-        prog.forEach(j=>{ md+=`    - ${j.date}：${j.content}\n`; });
+        prog.forEach(j=>{
+          const dt=fmtDateTime(j.createdAt)||j.date;
+          const col=j.color?` style="color:${j.color}"`:'';
+          md+=`    - <span${col}>${dt}：${j.content}</span>\n`;
+        });
       }
     });
     md+=`\n`;
@@ -1722,9 +1728,10 @@ function generateWeeklyReport(){
     md+=`## 三、下周重点（未完成 / 逾期）\n\n`;
     pendingSorted.forEach(t=>{
       const pLabel=PRIORITY_LABELS[t.priority]||t.priority;
+      const pColor=PRIORITY_COLORS[t.priority]||'#334155';
       const proj=t.projectId?getProjectName(t.projectId):'未关联项目';
       const od=t.deadline&&daysOverdue(t.deadline)>0?`逾期 ${daysOverdue(t.deadline)} 天`:(t.deadline?`截止 ${t.deadline}`:'无截止日期');
-      md+=`- [${pLabel}] ${t.title}（${proj}）— ${od}\n`;
+      md+=`- <span style="color:${pColor}">[${pLabel}]</span> ${t.title}（${proj}）— ${od}\n`;
     });
     md+=`\n`;
   }
