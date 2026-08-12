@@ -62,8 +62,8 @@ a{color:var(--primary);text-decoration:none}
 .alert-card{border:1px solid var(--border);border-radius:var(--radius);padding:14px;background:var(--card)}
 .alert-card.overdue{border-color:#fca5a5;background:var(--danger-bg)}
 .alert-card.stuck{border-color:#fcd34d;background:var(--warning-bg)}
-.alert-card.today{border-color:#86efac;background:#ecfdf5}
-.alert-card.today .alert-card-title .count{background:var(--primary)}
+.alert-card.today{border-color:#fca5a5;background:var(--danger-bg)}
+.alert-card.today .alert-card-title .count{background:var(--danger)}
 .alert-more{font-size:11px;color:var(--text-light);padding-top:6px;text-align:center}
 .alert-card-title{font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:8px;display:flex;align-items:center;gap:6px}
 .alert-card-title .count{background:var(--danger);color:#fff;font-size:11px;padding:1px 7px;border-radius:10px}
@@ -944,8 +944,8 @@ function renderFocus(){
   html+=`<div class="focus-section">
     <div class="focus-section-header">
       <div class="focus-section-title">
-        🟢 今天的任务
-        <span style="font-size:12px;font-weight:400;color:var(--text-light)">共 ${todayTodos.length} 件，点「处理」去今天待办</span>
+        ⚠️ 今天要处理的
+        <span style="font-size:12px;font-weight:400;color:var(--text-light)">含逾期 ${overdueTodos.length} 件 · 共 ${todayTodos.length} 件，点「处理」去今天待办</span>
       </div>
       <button class="btn btn-sm" onclick="goToTodosToday()">${IC.todo}全部处理</button>
     </div>`;
@@ -953,13 +953,13 @@ function renderFocus(){
     html+=`<div class="focus-empty">${IC.ok}<p>今天没有待处理的任务 🎉</p></div>`;
   }else{
     html+=`<div class="alert-card today">
-      <div class="alert-card-title">${IC.todo}今天的任务 <span class="count">${todayTodos.length}</span></div>`;
+      <div class="alert-card-title">⚠️ 今天要处理的 <span class="count">${todayTodos.length}</span></div>`;
     sortedOverview.slice(0,10).forEach(t=>{
       const isOver=t.deadline&&daysOverdue(t.deadline)>0;
       html+=`<div class="alert-item">
         <span class="alert-item-name">${esc(t.title)}</span>
         <span class="alert-item-meta">${PRIORITY_LABELS[t.priority]||'一般'}${t.deadline?(' · '+(isOver?('逾期'+daysOverdue(t.deadline)+'天'):fmtDate(t.deadline))):''}${t.deferredCount>0?' · 顺延'+t.deferredCount+'次':''}</span>
-        <button class="btn btn-sm" onclick="goToTodosToday()">处理</button>
+        <button class="btn btn-sm" onclick="goToTodosToday('${t.projectId||''}')">处理</button>
       </div>`;
     });
     html+= todayTodos.length>10?`<div class="alert-more">还有 ${todayTodos.length-10} 件，见下方「今天的清单」</div>`:'';
@@ -998,7 +998,7 @@ function renderFocus(){
         <div class="focus-card-priority-bar" style="background:${pColor}"></div>
         <div class="focus-card-check${t.done?' checked':''}" onclick="toggleTodoFocus('${t.id}')">${t.done?IC.check:''}</div>
         <div class="focus-card-body">
-          <div class="focus-card-title" onclick="goToTodosToday()">${esc(t.title)}</div>
+          <div class="focus-card-title" onclick="goToTodosToday('${t.projectId||''}')">${esc(t.title)}</div>
           <div class="focus-card-tags">
             <span class="priority-badge priority-${t.priority}">${pLabel}</span>`;
       if(t.deadline){
@@ -1013,7 +1013,7 @@ function renderFocus(){
       }
       html+=`</div>
         <div class="focus-card-actions">
-          <button class="btn btn-sm" onclick="goToTodosToday()" title="查看详情">${IC.arrow}</button>
+          <button class="btn btn-sm" onclick="goToTodosToday('${t.projectId||''}')" title="查看详情">${IC.arrow}</button>
           <button class="btn btn-sm" onclick="openTodoModal('${t.id}')" title="编辑">${IC.edit}</button>
           <button class="btn btn-sm btn-danger" onclick="deleteTodo('${t.id}')" title="删除">${IC.trash}</button>
         </div>
@@ -1874,8 +1874,9 @@ function setTodoFilter(filter){
   state.todoFilter=filter;
   renderTodos();
 }
-function goToTodosToday(){
+function goToTodosToday(projectId){
   state.todoFilter='today';
+  state.projectFilter=projectId||'';
   switchTab('todos');
 }
 function setProjectFilter(pid){
