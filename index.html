@@ -818,6 +818,20 @@ function urgencyTint(priority,isOver){
   return '#f8fafc';
 }
 
+// Unified todo sort: 逾期置顶 → 组内逾期天数降序 → 逾期天数相同按 P0>P1>P2>P3 → 非逾期整体在后按优先级
+function sortTodosUnified(arr){
+  const po={P0:0,P1:1,P2:2,P3:3};
+  return [...arr].sort((a,b)=>{
+    const aOver=a.deadline&&daysOverdue(a.deadline)>0?0:1;
+    const bOver=b.deadline&&daysOverdue(b.deadline)>0?0:1;
+    if(aOver!==bOver)return aOver-bOver;
+    const aOd=a.deadline?daysOverdue(a.deadline):0;
+    const bOd=b.deadline?daysOverdue(b.deadline):0;
+    if(aOd!==bOd)return bOd-aOd;
+    return (po[a.priority]??99)-(po[b.priority]??99);
+  });
+}
+
 // ===== Render: Sidebar =====
 function renderSidebar(){
   const nav=document.getElementById('sidebarNav');
@@ -1150,6 +1164,13 @@ function renderTodos(){
   if(state.projectFilter!==''){
     if(state.projectFilter==='__none__') filtered=filtered.filter(t=>!t.projectId);
     else filtered=filtered.filter(t=>t.projectId===state.projectFilter);
+  }
+
+  // Unified sort: 逾期置顶 → 逾期天数降序 → 同天数按优先级 → 非逾期按优先级
+  if(state.todoFilter==='done'){
+    filtered=[...filtered].sort((a,b)=>(b.completedAt||0)-(a.completedAt||0));
+  }else{
+    filtered=sortTodosUnified(filtered);
   }
 
   // ===== Render list =====
