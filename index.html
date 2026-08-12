@@ -338,6 +338,54 @@ a{color:var(--primary);text-decoration:none}
 .stuck-list .stuck-icon{color:var(--warning);flex-shrink:0;margin-top:2px}
 .stuck-list .stuck-icon.danger{color:var(--danger)}
 
+/* ===== Today Focus Page ===== */
+.focus-greeting{background:linear-gradient(135deg,#f0fdfa 0%,#eff6ff 50%,#fefce8 100%);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;margin-bottom:16px;position:relative;overflow:hidden}
+.focus-greeting::after{content:'';position:absolute;right:-20px;top:-20px;width:120px;height:120px;border-radius:50%;background:rgba(13,148,136,.06)}
+.focus-date{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted);margin-bottom:6px}
+.focus-date svg{color:var(--primary)}
+.focus-greeting-text{font-size:26px;font-weight:700;color:var(--text);margin-bottom:8px}
+.focus-summary{font-size:14px;color:var(--text-muted);line-height:1.6}
+.focus-summary .num{font-weight:700;color:var(--danger)}
+.focus-summary .num-warn{font-weight:700;color:var(--warning)}
+.focus-summary .num-ok{font-weight:700;color:var(--primary)}
+
+.focus-stats-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.focus-stats{display:flex;align-items:center;gap:14px;font-size:13px;color:var(--text-muted);flex-wrap:wrap}
+.focus-stat-num{font-weight:700;color:var(--text)}
+.focus-actions{display:flex;gap:8px}
+
+.focus-section{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;overflow:hidden}
+.focus-section-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border-light);flex-wrap:wrap;gap:8px}
+.focus-section-title{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;color:var(--text)}
+.focus-section-title .warn-icon{color:var(--danger)}
+.focus-section-title .sun-icon{color:var(--warning)}
+.focus-section-badges{display:flex;align-items:center;gap:8px;font-size:12px}
+.focus-badge-overdue{background:var(--danger-bg);color:var(--danger);padding:2px 10px;border-radius:10px;font-weight:600}
+.focus-badge-stuck{background:var(--warning-bg);color:#92400e;padding:2px 10px;border-radius:10px;font-weight:600}
+.focus-section-extra{font-size:12px;color:var(--text-light)}
+
+.focus-task-list{padding:8px 0}
+.focus-empty{text-align:center;padding:32px 16px;color:var(--text-light);font-size:13px}
+.focus-empty svg{display:block;margin:0 auto 8px;opacity:.4}
+
+/* Focus task card (combined from both reference images) */
+.focus-card{display:flex;align-items:flex-start;gap:10px;padding:12px 18px;border-bottom:1px solid var(--border-light);transition:background .12s}
+.focus-card:last-child{border-bottom:none}
+.focus-card:hover{background:var(--border-light)}
+.focus-card-priority-bar{width:3px;border-radius:2px;flex-shrink:0;margin-top:4px;height:calc(100% - 8px);align-self:stretch}
+.focus-card-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.focus-card-top{display:flex;align-items:center;gap:8px}
+.focus-card-check{width:18px;height:18px;border:2px solid var(--border);border-radius:5px;cursor:pointer;flex-shrink:0;transition:all .15s;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.focus-card-check:hover{border-color:var(--primary)}
+.focus-card-check.checked{background:var(--success);border-color:var(--success)}
+.focus-card-check.checked svg{display:block}
+.focus-card-check svg{display:none}
+.focus-card-title{font-size:14px;font-weight:500;color:var(--text);cursor:pointer;line-height:1.4}
+.focus-card-title:hover{color:var(--primary)}
+.focus-card-tags{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.focus-card-meta{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-light);margin-top:2px}
+.focus-card-actions{display:flex;gap:4px;flex-shrink:0;padding-top:2px}
+
 /* ===== Sync Status ===== */
 .sync-status{display:flex;align-items:center;gap:6px;font-size:12px;padding:6px 0}
 .sync-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
@@ -494,8 +542,13 @@ a{color:var(--primary);text-decoration:none}
 
     <!-- Content -->
     <main class="content">
+      <!-- 今日焦点 -->
+      <section class="content-section active" id="section-focus">
+        <div id="focusContent"></div>
+      </section>
+
       <!-- 今天待办 -->
-      <section class="content-section active" id="section-todos">
+      <section class="content-section" id="section-todos">
         <div class="section-title">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
           今天待办
@@ -549,6 +602,7 @@ const IC = {
   note:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z"/><line x1="9" y1="21" x2="15" y2="21"/></svg>',
   project:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
   review:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+  focus:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
   trash:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
   arrow:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>',
   check:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>',
@@ -566,7 +620,7 @@ const PRIORITY_LABELS = {P0:'紧急',P1:'重要',P2:'一般',P3:'低'};
 const PRIORITY_COLORS = {P0:'#ef4444',P1:'#f97316',P2:'#3b82f6',P3:'#94a3b8'};
 const JOURNAL_COLORS = ['#1e293b','#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
 
-let state = {todos:[],notes:[],projects:[],currentTab:'todos',noteTagFilter:null,todoFilter:'today',projectFilter:'',noteSearchQuery:''};
+let state = {todos:[],notes:[],projects:[],currentTab:'focus',noteTagFilter:null,todoFilter:'today',projectFilter:'',noteSearchQuery:''};
 
 // ===== GitHub Gist Sync =====
 const GIST_ID = '9c80460a40683448346a1c58610e0066';
@@ -739,6 +793,7 @@ function getProjectName(pid){const p=state.projects.find(x=>x.id===pid);return p
 function renderSidebar(){
   const nav=document.getElementById('sidebarNav');
   const items=[
+    {id:'focus',label:'今日焦点',icon:IC.focus,count:state.todos.filter(t=>!t.done).length},
     {id:'todos',label:'今天待办',icon:IC.todo,count:state.todos.filter(t=>!t.done).length},
     {id:'notes',label:'灵感速记',icon:IC.note,count:state.notes.length},
     {id:'projects',label:'项目跟进',icon:IC.project,count:state.projects.length},
@@ -808,6 +863,142 @@ function renderTopAlert(){
   }
   
   grid.innerHTML=overdueHtml+stuckHtml;
+}
+
+// ===== Render: Today Focus =====
+function renderFocus(){
+  const c=document.getElementById('focusContent');
+  const today=todayStr();
+  const now=new Date();
+  const hour=now.getHours();
+
+  // Greeting based on time
+  let greeting='你好';
+  if(hour>=5&&hour<9)greeting='早上好';
+  else if(hour>=9&&hour<12)greeting='上午好';
+  else if(hour>=12&&hour<14)greeting='中午好';
+  else if(hour>=14&&hour<18)greeting='下午好';
+  else if(hour>=18&&hour<22)greeting='晚上好';
+  else greeting='夜深了';
+
+  // Date display
+  const weekDays=['日','一','二','三','四','五','六'];
+  const dateStr=`${now.getMonth()+1}月${now.getDate()}日 · 周${weekDays[now.getDay()]}`;
+
+  // Compute stats
+  const allTodos=state.todos.filter(t=>!t.done);
+  const overdueTodos=allTodos.filter(t=>t.deadline&&daysOverdue(t.deadline)>0);
+  const todayTodos=allTodos.filter(t=>t.deadline===today||(!t.deadline));
+  const stuckProjects=state.projects.filter(p=>p.blocked);
+  const completedToday=state.todos.filter(t=>t.done&&t.completedAt&&t.completedAt>=new Date().setHours(0,0,0,0)).length;
+  const activeProjects=state.projects.filter(p=>!p.blocked).length;
+  const pendingCount=todayTodos.length;
+
+  // Sort today's todos: overdue first, then by priority
+  const priorityOrder={P0:0,P1:1,P2:2,P3:3};
+  const sortedToday=[...todayTodos].sort((a,b)=>{
+    const aOver=a.deadline&&daysOverdue(a.deadline)>0?0:1;
+    const bOver=b.deadline&&daysOverdue(b.deadline)>0?0:1;
+    if(aOver!==bOver)return aOver-bOver;
+    return (priorityOrder[a.priority]||99)-(priorityOrder[b.priority]||99);
+  });
+
+  let html='';
+
+  // === Greeting Card ===
+  html+=`<div class="focus-greeting">
+    <div class="focus-date">${IC.focus} ${dateStr}</div>
+    <div class="focus-greeting-text">${greeting}</div>
+    <div class="focus-summary">`;
+  if(overdueTodos.length>0||stuckProjects.length>0){
+    html+=`有 <span class="num">${overdueTodos.length}</span> 件逾期`;
+    if(stuckProjects.length>0)html+=` 和 <span class="num-warn">${stuckProjects.length}</span> 个卡住的项目`;
+    html+=`要先处理，`;
+  }
+  html+=`剩下 <span class="num-ok">${pendingCount}</span> 件按优先级往下推。</div>
+  </div>`;
+
+  // === Stats Bar ===
+  html+=`<div class="focus-stats-bar">
+    <div class="focus-stats">
+      <span><span class="focus-stat-num">${pendingCount}</span> 件待办待处理</span>
+      <span>·</span>
+      <span>今天已完成 <span class="focus-stat-num">${completedToday}</span> 件</span>
+      <span>·</span>
+      <span><span class="focus-stat-num">${activeProjects}</span> 个项目在跑</span>
+    </div>
+    <div class="focus-actions">
+      <button class="btn btn-sm" onclick="switchTab('todos')">${IC.todo}去待办</button>
+      <button class="btn btn-sm" onclick="exportData()">${IC.arrow}导出备份</button>
+    </div>
+  </div>`;
+
+  // === Today's Task List Section ===
+  html+=`<div class="focus-section">
+    <div class="focus-section-header">
+      <div class="focus-section-title">
+        <span class="sun-icon">☀️</span>
+        今天的清单
+        <span style="font-size:12px;font-weight:400;color:var(--text-light)">昨天没做完的会自动留在这里，不会消失</span>
+      </div>
+      <button class="btn btn-sm btn-primary" onclick="openTodoModal()">${IC.plus}加任务</button>
+    </div>
+    <div class="focus-task-list">`;
+
+  if(sortedToday.length===0){
+    html+=`<div class="focus-empty">${IC.ok}<p>今天没有待处理的事项，状态不错 🎉</p></div>`;
+  }else{
+    sortedToday.forEach(t=>{
+      const isOverdue=t.deadline&&daysOverdue(t.deadline)>0;
+      const pColor=PRIORITY_COLORS[t.priority]||'#94a3b8';
+      const pLabel=PRIORITY_LABELS[t.priority]||'一般';
+      const projName=getProjectName(t.projectId);
+      const deferInfo=t.deferredCount>0?`顺延 ${t.deferredCount} 次`:'';
+
+      // Status note line
+      let statusNote='';
+      if(isOverdue)statusNote=`<span style="color:var(--danger);font-weight:600">逾期 ${daysOverdue(t.deadline)} 天</span>`;
+      if(t.deferredCount>0)statusNote+=(statusNote?' · ':'')+'已顺延 '+t.deferredCount+' 次';
+
+      html+=`<div class="focus-card">
+        <div class="focus-card-priority-bar" style="background:${pColor}"></div>
+        <div class="focus-card-check${t.done?' checked':''}" onclick="toggleTodoFocus('${t.id}')">${t.done?IC.check:''}</div>
+        <div class="focus-card-body">
+          <div class="focus-card-title" onclick="switchTab('todos')">${esc(t.title)}</div>
+          <div class="focus-card-tags">
+            <span class="priority-badge priority-${t.priority}">${pLabel}</span>`;
+      if(t.deadline){
+        const dd=daysOverdue(t.deadline);
+        html+=`<span class="${dd>0?'deadline-tag overdue':'deadline-tag'}">${dd>0?'逾期 '+dd+' 天':fmtDate(t.deadline)}</span>`;
+      }
+      if(projName)html+=`<span class="project-tag-outline"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> ${projName}</span>`;
+      if(deferInfo)html+=`<span class="deferred-tag-pill">${deferInfo}</span>`;
+      html+=`</div>`;
+      if(statusNote||isOverdue){
+        html+=`<div class="focus-card-meta">${statusNote||'昨日未完成 · 已带到现在'}</div>`;
+      }
+      html+=`</div>
+        <div class="focus-card-actions">
+          <button class="btn btn-sm" onclick="switchTab('todos')" title="查看详情">${IC.arrow}</button>
+          <button class="btn btn-sm" onclick="openTodoModal('${t.id}')" title="编辑">${IC.edit}</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteTodo('${t.id}')" title="删除">${IC.trash}</button>
+        </div>
+      </div>`;
+    });
+  }
+
+  html+=`</div></div>`;
+  c.innerHTML=html;
+}
+
+// Toggle todo done from focus page
+function toggleTodoFocus(id){
+  const t=state.todos.find(x=>x.id===id);
+  if(!t)return;
+  t.done=!t.done;
+  t.updatedAt=Date.now();
+  if(t.done)t.completedAt=Date.now();
+  save();renderAll();scheduleGistUpload();
 }
 
 // ===== Render: Todos =====
@@ -1638,7 +1829,8 @@ function switchTab(tab){
   renderCurrentTab();
 }
 function renderCurrentTab(){
-  if(state.currentTab==='todos')renderTodos();
+  if(state.currentTab==='focus')renderFocus();
+  else if(state.currentTab==='todos')renderTodos();
   else if(state.currentTab==='notes')renderNotes();
   else if(state.currentTab==='projects')renderProjects();
   else if(state.currentTab==='review')renderReview();
