@@ -329,6 +329,14 @@ a{color:var(--primary);text-decoration:none}
 .todo-edit-field label{display:block;font-size:12px;color:var(--text-muted);font-weight:500;margin-bottom:4px}
 .todo-edit-field input,.todo-edit-field select,.todo-edit-field textarea{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;color:var(--text);background:var(--card);transition:border-color .15s;box-sizing:border-box;font-family:inherit}
 .todo-edit-field input:focus,.todo-edit-field select:focus,.todo-edit-field textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(13,148,136,.1)}
+.proj-select-wrap{position:relative}
+.proj-select-input{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;color:var(--text);background:var(--card);box-sizing:border-box;font-family:inherit}
+.proj-select-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(13,148,136,.1)}
+.proj-suggest{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:220px;overflow:auto;z-index:60}
+.proj-suggest-item{padding:9px 12px;font-size:14px;cursor:pointer;color:var(--text);display:flex;align-items:center;gap:8px}
+.proj-suggest-item .pmark{font-size:12px;color:var(--text-muted)}
+.proj-suggest-item:hover,.proj-suggest-item.active,.proj-suggest-item.hl{background:rgba(13,148,136,.1)}
+.proj-suggest-item.none{color:var(--text-muted)}
 .todo-edit-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
 
 /* ===== Project Edit Modal ===== */
@@ -1881,9 +1889,11 @@ function openTodoModal(id, presetProjectId){
         <option value="P3" ${t&&t.priority==='P3'?'selected':''}>低优先级</option>
       </select></div>
       <div class="todo-edit-field"><label>截止日期</label><input type="date" id="editTodoDeadline" value="${t?t.deadline||'':todayStr()}"></div>
-      <div class="todo-edit-field"><label>关联项目（可不选）</label><select id="editTodoProject">
-        <option value="" ${(!t||!t.projectId)?'selected':''}>无项目</option>${projOpts}
-      </select></div>
+      <div class="todo-edit-field"><label>关联项目（可不选，输入任意部分名称即可联想）</label><div class="proj-select-wrap">
+        <input id="editTodoProjectInput" class="proj-select-input" value="${presetProj?esc(getProjectName(presetProj)):''}" placeholder="输入项目名搜索…" autocomplete="off">
+        <input type="hidden" id="editTodoProject" value="${presetProj||''}">
+        <div class="proj-suggest" id="projSuggest" style="display:none"></div>
+      </div></div>
       <div class="todo-edit-actions">
         <button class="btn btn-sm" onclick="closeTodoModal()">取消</button>
         <button class="btn btn-sm btn-primary" onclick="saveTodoModal()">${IC.edit}保存</button>
@@ -1891,7 +1901,56 @@ function openTodoModal(id, presetProjectId){
     </div>`;
   document.body.appendChild(overlay);
   // Auto-focus title input
-  setTimeout(()=>{const inp=document.getElementById('editTodoTitle');if(inp)inp.focus()},100);
+  setTimeout(()=>{
+    const inp=document.getElementById('editTodoTitle');if(inp)inp.focus();
+    setupProjectSearch();
+  },100);
+}
+
+// 关联项目：输入框 + 子串联想（不限开头部分）
+function setupProjectSearch(){
+  const inp=document.getElementById('editTodoProjectInput');
+  const box=document.getElementById('projSuggest');
+  const hid=document.getElementById('editTodoProject');
+  if(!inp||!box||!hid)return;
+  function render(q){
+    q=(q||'').trim().toLowerCase();
+    const list=[];
+    list.push({id:'',name:'无项目',none:true});
+    state.projects.forEach(p=>{
+      if(q===''||p.name.toLowerCase().includes(q)) list.push(p);
+    });
+    if(list.length===0){box.style.display='none';return;}
+    box.innerHTML=list.map(p=>`<div class="proj-suggest-item ${p.none?'none':''} ${p.id===hid.value?'active':''}" data-id="${p.id}" data-name="${esc(p.name)}">${p.none?'<span class="pmark">＋</span>':''}${esc(p.name)}</div>`).join('');
+    box.style.display='block';
+    box.querySelectorAll('.proj-suggest-item').forEach(it=>{
+      it.onmousedown=()=>{ // mousedown 先于 blur 触发，避免框先关闭
+        const id=it.getAttribute('data-id');
+        hid.value=id;
+        inp.value=(id&&!it.classList.contains('none'))?it.getAttribute('data-name'):'';
+        box.style.display='none';
+      };
+    });
+  }
+  inp.oninput=()=>{
+    // 输入变化时，若当前文本已被精确选中的项目覆盖则保留；否则先清空 id，等待点选或精确匹配
+    const q=inp.value.trim().toLowerCase();
+    const exact=state.projects.find(p=>p.name.toLowerCase()===q);
+    hid.value=exact?exact.id:'';
+    render(inp.value);
+  };
+  inp.onfocus=()=>{render(inp.value);};
+  inp.onblur=()=>{setTimeout(()=>{box.style.display='none';},150);};
+  // 键盘上下选择（可选增强）
+  inp.onkeydown=(e)=>{
+    if(box.style.display==='none')return;
+    const items=[...box.querySelectorAll('.proj-suggest-item')];
+    const cur=items.findIndex(i=>i.classList.contains('hl'));
+    if(e.key==='ArrowDown'){e.preventDefault();items.forEach(i=>i.classList.remove('hl'));const n=(cur+1)%items.length;items[n].classList.add('hl');}
+    else if(e.key==='ArrowUp'){e.preventDefault();items.forEach(i=>i.classList.remove('hl'));const n=(cur-1+items.length)%items.length;items[n].classList.add('hl');}
+    else if(e.key==='Enter'){const hl=items[cur>=0?cur:0];if(hl){e.preventDefault();hl.onmousedown();}}
+    else if(e.key==='Escape'){box.style.display='none';}
+  };
 }
 
 function closeTodoModal(){
@@ -1905,7 +1964,11 @@ function saveTodoModal(){
   if(!title){alert('请输入任务内容');return}
   const priority=document.getElementById('editTodoPriority').value;
   const deadline=document.getElementById('editTodoDeadline').value||'';
-  const projectId=document.getElementById('editTodoProject').value||null;
+  let projectId=document.getElementById('editTodoProject').value||null;
+  if(!projectId){
+    const q=document.getElementById('editTodoProjectInput').value.trim().toLowerCase();
+    if(q){const m=state.projects.find(p=>p.name.toLowerCase()===q);if(m)projectId=m.id;}
+  }
 
   if(editingTodoId){
     // Edit existing
