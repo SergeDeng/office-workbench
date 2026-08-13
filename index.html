@@ -173,6 +173,8 @@ a{color:var(--primary);text-decoration:none}
 .todo-item.overdue{border-color:#fca5a5;background:var(--danger-bg)}
 .todo-item.done{opacity:.55}
 .todo-item.done .todo-title{text-decoration:line-through;color:var(--text-muted)}
+.todo-done-divider{display:flex;align-items:center;gap:10px;margin:14px 0 8px;color:var(--text-muted);font-size:12px;font-weight:600;letter-spacing:.05em}
+.todo-done-divider::before,.todo-done-divider::after{content:"";flex:1;height:1px;background:var(--border)}
 .todo-priority-bar{position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .todo-item-main{display:flex;align-items:flex-start;gap:10px;flex:1;min-width:0;padding-left:8px}
 .todo-checkbox{width:18px;height:18px;border:2px solid var(--border);border-radius:5px;cursor:pointer;flex-shrink:0;margin-top:2px;transition:all .15s;display:flex;align-items:center;justify-content:center}
@@ -1185,11 +1187,9 @@ function renderTodos(){
   }
 
   // ===== Render list =====
-  if(filtered.length===0){
-    html+=`<div class="empty-state"><p>该筛选条件下暂无任务</p></div>`;
-  }else{
-    filtered.forEach(t=>{
-      const od=!t.done&&t.deadline&&daysOverdue(t.deadline)>0;
+  const renderItem=(t)=>{
+    let h='';
+    const od=!t.done&&t.deadline&&daysOverdue(t.deadline)>0;
       const pn=getProjectName(t.projectId);
       const jcount=(t.journal||[]).length;
       const priColor=PRIORITY_COLORS[t.priority];
@@ -1198,7 +1198,7 @@ function renderTodos(){
       if(t.deadline&&!od&&t.deadline!==today) noteLines.push(fmtDate(t.deadline));
       if(t.deferredCount>0) noteLines.push(`已顺延 ${t.deferredCount} 次`);
 
-      html+=`<div class="todo-item ${od?'overdue':''} ${t.done?'done':''}" id="todoItem-${t.id}">
+      h+=`<div class="todo-item ${od?'overdue':''} ${t.done?'done':''}" id="todoItem-${t.id}">
         <div class="todo-priority-bar" style="background:${priColor}"></div>
         <div class="todo-item-main">
           <div class="todo-checkbox ${t.done?'checked':''}" onclick="toggleTodo('${t.id}')">${IC.check}</div>
@@ -1245,7 +1245,33 @@ function renderTodos(){
           </div>
         </div>
       </div>`;
-    });
+    return h;
+  };
+
+  // 「全部」：未完成在上，已完成（按当前项目筛选）排在底部
+  if(state.todoFilter==='all'){
+    const pending=filtered;
+    let doneOnes=state.todos.filter(t=>t.done);
+    if(state.projectFilter!==''){
+      if(state.projectFilter==='__none__') doneOnes=doneOnes.filter(t=>!t.projectId);
+      else doneOnes=doneOnes.filter(t=>t.projectId===state.projectFilter);
+    }
+    doneOnes=[...doneOnes].sort((a,b)=>(b.completedAt||0)-(a.completedAt||0));
+    if(pending.length===0 && doneOnes.length===0){
+      html+=`<div class="empty-state"><p>该筛选条件下暂无任务</p></div>`;
+    }else{
+      pending.forEach(t=>html+=renderItem(t));
+      if(doneOnes.length>0){
+        html+=`<div class="todo-done-divider"><span>已完成</span></div>`;
+        doneOnes.forEach(t=>html+=renderItem(t));
+      }
+    }
+  }else{
+    if(filtered.length===0){
+      html+=`<div class="empty-state"><p>该筛选条件下暂无任务</p></div>`;
+    }else{
+      filtered.forEach(t=>html+=renderItem(t));
+    }
   }
 
   c.innerHTML=html;
