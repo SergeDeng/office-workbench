@@ -408,7 +408,7 @@ a{color:var(--primary);text-decoration:none}
 .focus-card-title:hover{color:var(--primary)}
 .focus-card-tags{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
 .focus-card-tags .project-tag-outline{font-size:11px;line-height:1.4;display:inline-flex;align-items:center;gap:3px;color:var(--success);border:1px solid var(--success);background:#f0fdf4;padding:1px 7px;border-radius:10px;white-space:nowrap}
-.focus-card-tags .deferred-tag-pill{font-size:11px;line-height:1.4;display:inline-flex;align-items:center;gap:3px;color:var(--success);border:1px solid var(--success);background:#f0fdf4;padding:1px 7px;border-radius:10px;white-space:nowrap;font-weight:500}
+.focus-card-tags .deferred-tag-pill{font-size:11px;padding:2px 8px;border-radius:10px;white-space:nowrap;background:#fef3c7;color:#92400e;font-weight:500}
 .focus-card-tags .project-tag-outline svg{opacity:.7}
 .focus-card-meta{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-light);margin-top:2px}
 .focus-card-actions{display:flex;gap:4px;flex-shrink:0;padding-top:2px}
@@ -1066,9 +1066,8 @@ function renderFocus(){
       const deferInfo=t.deferredCount>0?`顺延 ${t.deferredCount} 次`:'';
       const cardBg=urgencyTint(t.priority,isOverdue);
 
-      // Status note line（逾期天数已移至上方 deadline 标签，避免重复）
+      // 状态行已移上空（逾期天数 / 已顺延均已在首行标签展示，避免重复）
       let statusNote='';
-      if(t.deferredCount>0)statusNote='已顺延 '+t.deferredCount+' 次';
 
       html+=`<div class="focus-card" style="background:${cardBg}">
         <div class="focus-card-priority-bar" style="background:${pColor}"></div>
