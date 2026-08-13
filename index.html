@@ -824,8 +824,9 @@ function urgencyTint(priority,isOver){
   return '#f8fafc';
 }
 
-// Unified todo sort: 逾期置顶 → 组内逾期天数降序 → 逾期天数相同按 P0>P1>P2>P3 → 非逾期整体在后按优先级
-function sortTodosUnified(arr){
+// Unified todo sort: 逾期置顶 → 组内逾期天数降序 → 逾期天数相同按 P0>P1>P2>P3 → 非逾期整体在后
+// nonOverdueBy: 'priority'(按优先级, 周报用) | 'deadline'(今天待办: 先按截止日期升序, 同日按优先级)
+function sortTodosUnified(arr, nonOverdueBy){
   const po={P0:0,P1:1,P2:2,P3:3};
   return [...arr].sort((a,b)=>{
     const aOver=a.deadline&&daysOverdue(a.deadline)>0?0:1;
@@ -834,6 +835,12 @@ function sortTodosUnified(arr){
     const aOd=a.deadline?daysOverdue(a.deadline):0;
     const bOd=b.deadline?daysOverdue(b.deadline):0;
     if(aOd!==bOd)return bOd-aOd;
+    // 非逾期且有截止日期: 按截止日期升序（无截止日期排最后）, 同日按优先级
+    if(nonOverdueBy==='deadline'){
+      const aDl=a.deadline||'9999-12-31';
+      const bDl=b.deadline||'9999-12-31';
+      if(aDl!==bDl)return aDl<bDl?-1:1;
+    }
     return (po[a.priority]??99)-(po[b.priority]??99);
   });
 }
@@ -1170,11 +1177,11 @@ function renderTodos(){
     else filtered=filtered.filter(t=>t.projectId===state.projectFilter);
   }
 
-  // Unified sort: 逾期置顶 → 逾期天数降序 → 同天数按优先级 → 非逾期按优先级
+  // Unified sort: 逾期置顶 → 逾期天数降序 → 同天数按优先级 → 非逾期先按截止日期升序(同日按优先级)
   if(state.todoFilter==='done'){
     filtered=[...filtered].sort((a,b)=>(b.completedAt||0)-(a.completedAt||0));
   }else{
-    filtered=sortTodosUnified(filtered);
+    filtered=sortTodosUnified(filtered, 'deadline');
   }
 
   // ===== Render list =====
