@@ -337,6 +337,10 @@ a{color:var(--primary);text-decoration:none}
 .proj-suggest-item .pmark{font-size:12px;color:var(--text-muted)}
 .proj-suggest-item:hover,.proj-suggest-item.active,.proj-suggest-item.hl{background:rgba(13,148,136,.1)}
 .proj-suggest-item.none{color:var(--text-muted)}
+.project-search-bar{display:flex;align-items:center;gap:8px;margin:10px 0 14px;position:relative}
+.project-search-bar svg{color:var(--text-muted);flex-shrink:0}
+.project-search-input{flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;color:var(--text);background:var(--card);box-sizing:border-box;font-family:inherit}
+.project-search-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(13,148,136,.1)}
 .todo-edit-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
 
 /* ===== Project Edit Modal ===== */
@@ -657,7 +661,7 @@ const PRIORITY_LABELS = {P0:'紧急',P1:'重要',P2:'一般',P3:'低'};
 const PRIORITY_COLORS = {P0:'#ef4444',P1:'#f97316',P2:'#3b82f6',P3:'#94a3b8'};
 const JOURNAL_COLORS = ['#1e293b','#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
 
-let state = {todos:[],notes:[],projects:[],currentTab:'focus',noteTagFilter:null,todoFilter:'today',projectFilter:'',noteSearchQuery:''};
+let state = {todos:[],notes:[],projects:[],currentTab:'focus',noteTagFilter:null,todoFilter:'today',projectFilter:'',noteSearchQuery:'',projectSearchQuery:''};
 
 // ===== GitHub Gist Sync =====
 const GIST_ID = '9c80460a40683448346a1c58610e0066';
@@ -1403,7 +1407,15 @@ function renderProjects(){
     全部项目
   </div>`;
 
+  // Project search bar
+  html+=`<div class="project-search-bar">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    <input id="projSearchInput" class="project-search-input" placeholder="搜索项目名…" value="${esc(state.projectSearchQuery||'')}" oninput="filterProjectsLive(this.value)">
+  </div>`;
+
+  const pq=(state.projectSearchQuery||'').trim().toLowerCase();
   state.projects.forEach(p=>{
+    if(pq&&!p.name.toLowerCase().includes(pq))return;
     const linked=state.todos.filter(t=>t.projectId===p.id);
     const done=linked.filter(t=>t.done).length;
     const total=linked.length;
@@ -1418,7 +1430,7 @@ function renderProjects(){
     // Overdue count in linked todos
     const overdueLinked=linked.filter(t=>!t.done&&t.deadline&&daysOverdue(t.deadline)>0);
 
-    html+=`<div class="project-card ${cardClass}">
+    html+=`<div class="project-card ${cardClass}" data-name="${esc(p.name)}">
       <div class="project-card-inner">
         <div class="project-card-head">
           <div class="project-card-name">${esc(p.name)}</div>
@@ -1472,6 +1484,31 @@ function renderProjects(){
 function toggleNewProjectForm(){
   const el=document.getElementById('newProjFields');
   if(el)el.classList.toggle('show');
+}
+
+// 项目跟进页：实时按项目名子串过滤（不重建 DOM，避免输入丢焦点）
+function filterProjectsLive(q){
+  state.projectSearchQuery=q;
+  const s=(q||'').trim().toLowerCase();
+  const cards=[...document.querySelectorAll('#projectsContent .project-card')];
+  let shown=0;
+  cards.forEach(card=>{
+    const name=(card.getAttribute('data-name')||'').toLowerCase();
+    const hit=!s||name.includes(s);
+    card.style.display=hit?'':'none';
+    if(hit)shown++;
+  });
+  let empty=document.getElementById('projSearchEmpty');
+  if(!empty&&cards.length>0){
+    empty=document.createElement('div');
+    empty.id='projSearchEmpty';
+    empty.className='empty-state';
+    empty.style.display='none';
+    empty.innerHTML=IC.project+'<p>没有匹配的项目</p>';
+    const c=document.getElementById('projectsContent');
+    if(c)c.appendChild(empty);
+  }
+  if(empty)empty.style.display=(s&&shown===0)?'':'none';
 }
 function addProjectNew(){
   const name=document.getElementById('projName').value.trim();
