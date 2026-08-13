@@ -1777,15 +1777,15 @@ function generateWeeklyReport(){
       const t=v.todo;
       const pLabel=PRIORITY_LABELS[t.priority]||t.priority;
       const pColor=PRIORITY_COLORS[t.priority]||'#334155';
-      let status='';
-      if(t.done)status='✅ 已完成';
-      else if(t.deadline&&daysOverdue(t.deadline)>0)status=`⚠️ 逾期 ${daysOverdue(t.deadline)} 天`;
-      else status='⬜ 待办';
+      let status,statusColor;
+      if(t.done){status='✅ 已完成';statusColor='#166534';}
+      else if(t.deadline&&daysOverdue(t.deadline)>0){status=`⚠️ 逾期 ${daysOverdue(t.deadline)} 天`;statusColor='#dc2626';}
+      else{ const sp=t.projectId?state.projects.find(x=>x.id===t.projectId):null; if(sp&&sp.blocked){status='⛔ 卡住';statusColor='#ea580c';} else {status='⬜ 待办';statusColor='#64748b';} }
       const dl=t.deadline?`（截止 ${t.deadline}）`:'（无截止日期）';
       const why=[];
       if(v.progress.length>0)why.push('📝有进展');
       if(v.inDue)why.push('🎯计划完成');
-      md+=`- **<span style="color:${pColor}">[${pLabel}]</span> ${t.title}** ${dl} — ${status}${why.length?`（${why.join(' · ')}）`:''}\n`;
+      md+=`- **<span style="color:${pColor}">[${pLabel}]</span> ${t.title}** ${dl} — <span style="color:${statusColor}">${status}</span>${why.length?`（${why.join(' · ')}）`:''}\n`;
       const prog=v.progress.slice().sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
       if(prog.length>0){
         md+=`  - 进展记录：\n`;
@@ -1808,7 +1808,8 @@ function generateWeeklyReport(){
       const pColor=PRIORITY_COLORS[t.priority]||'#334155';
       const proj=t.projectId?getProjectName(t.projectId):'未关联项目';
       const od=t.deadline&&daysOverdue(t.deadline)>0?`逾期 ${daysOverdue(t.deadline)} 天`:(t.deadline?`截止 ${t.deadline}`:'无截止日期');
-      md+=`- <span style="color:${pColor}">[${pLabel}]</span> ${t.title}（${proj}）— ${od}\n`;
+      const odColor=od.indexOf('逾期')===0?'#dc2626':'#64748b';
+      md+=`- <span style="color:${pColor}">[${pLabel}]</span> ${t.title}（${proj}）— <span style="color:${odColor}">${od}</span>\n`;
     });
     md+=`\n`;
   }
