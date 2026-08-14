@@ -1962,11 +1962,17 @@ function setupProjectSearch(){
     box.innerHTML=list.map(p=>`<div class="proj-suggest-item ${p.none?'none':''} ${p.id===hid.value?'active':''}" data-id="${p.id}" data-name="${esc(p.name)}">${p.none?'<span class="pmark">＋</span>':''}${esc(p.name)}</div>`).join('');
     box.style.display='block';
     box.querySelectorAll('.proj-suggest-item').forEach(it=>{
-      it.onmousedown=()=>{ // mousedown 先于 blur 触发，避免框先关闭
+      it.onmousedown=(e)=>{ // mousedown 先于 blur 触发，避免框先关闭
+        if(e&&e.preventDefault)e.preventDefault();   // 保持输入框聚焦，阻止默认行为
+        if(e&&e.stopPropagation)e.stopPropagation();
         const id=it.getAttribute('data-id');
         hid.value=id;
         inp.value=(id&&!it.classList.contains('none'))?it.getAttribute('data-name'):'';
-        box.style.display='none';
+        // 关键：不能在 mousedown 里立即隐藏下拉框——下拉框绝对定位会溢出到 overlay 背景之上，
+        // 立即隐藏后 mouseup 会落在 overlay 背景，浏览器合成 click 的 e.target===overlay，
+        // 触发 overlay.onclick 把整个弹窗关掉（"闪退"）。延迟到 click 派发后再隐藏，
+        // 保证 click 的 target 仍是候选项本身。
+        setTimeout(()=>{box.style.display='none';},0);
       };
     });
   }
