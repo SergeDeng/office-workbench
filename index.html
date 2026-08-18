@@ -2135,7 +2135,7 @@ function toggleTodo(id){
 }
 function deferTodo(id){
   const t=state.todos.find(x=>x.id===id);if(!t)return;
-  t.startDate=dateStr(1);t.deadline=dateStr(1);
+  t.deadline=dateStr(1);
   t.deferredCount=(t.deferredCount||0)+1;
   t.updatedAt=Date.now();
   save();renderAll();
@@ -2146,7 +2146,7 @@ function deferAllOverdue(){
   const overdue=state.todos.filter(t=>!t.done&&t.deadline&&daysOverdue(t.deadline)>0);
   if(overdue.length===0)return;
   overdue.forEach(t=>{
-    t.startDate=dateStr(1);t.deadline=dateStr(1);
+    t.deadline=dateStr(1);
     t.deferredCount=(t.deferredCount||0)+1;
     t.updatedAt=Date.now();
   });
