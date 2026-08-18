@@ -755,7 +755,7 @@ function mergeAll(L, C, B){
   const conflicts=[];
   const merged={todos:[],notes:[],projects:[],deleted:[]};
   const spec=[
-    {key:'todos', type:'todo', fields:['title','priority','deadline','done','projectId','completedAt','deferredCount','demo']},
+    {key:'todos', type:'todo', fields:['title','priority','deadline','startDate','done','projectId','completedAt','deferredCount','demo']},
     {key:'notes', type:'note', fields:['content','tags']},
     {key:'projects', type:'project', fields:['name','currentStep','nextStep','blocked','blockedNote']},
   ];
@@ -802,13 +802,19 @@ async function syncNow(){
     const cloud=await downloadGist();
     const base=loadSyncBase();
     const {merged, conflicts}=mergeAll(state, cloud, base);
-    state.todos=merged.todos; state.notes=merged.notes; state.projects=merged.projects; state.deleted=merged.deleted;
-    saveLocal();
+    // 防护：仅在合并结果与当前 state 不同时才覆盖（避免不必要的 localStorage 写入和竞态覆盖）
+    const changed = JSON.stringify(state.todos)!==JSON.stringify(merged.todos)
+      || JSON.stringify(state.notes)!==JSON.stringify(merged.notes)
+      || JSON.stringify(state.projects)!==JSON.stringify(merged.projects);
+    if(changed){
+      state.todos=merged.todos; state.notes=merged.notes; state.projects=merged.projects; state.deleted=merged.deleted;
+      saveLocal();
+    }
     saveSyncBase({todos:merged.todos,notes:merged.notes,projects:merged.projects,deleted:merged.deleted});
     await pushGist({todos:merged.todos,notes:merged.notes,projects:merged.projects,deleted:merged.deleted});
     updateSyncUI('synced','已同步 ✓');
     if(conflicts.length) showSyncConflicts(conflicts);
-    renderAll();
+    if(changed) renderAll();
   }catch(e){
     console.warn('同步失败:', e&&e.message);
     updateSyncUI('offline','离线模式 ○');
