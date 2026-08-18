@@ -188,6 +188,7 @@ a{color:var(--primary);text-decoration:none}
 .todo-tag-row .priority-badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap}
 .todo-tag-row .project-tag-outline{font-size:11px;padding:1px 7px;border-radius:10px;white-space:nowrap;border:1px solid var(--success);color:var(--success);background:#f0fdf4}
 .todo-tag-row .overdue-tag{font-size:11px;padding:2px 8px;border-radius:10px;white-space:nowrap;background:#fee2e2;color:#dc2626;font-weight:600}
+.todo-tag-row .upcoming-tag{font-size:11px;padding:2px 8px;border-radius:10px;white-space:nowrap;background:#e0e7ff;color:#4338ca;font-weight:600}
 .todo-tag-row .deferred-tag-pill{font-size:11px;padding:2px 8px;border-radius:10px;white-space:nowrap;background:#fef3c7;color:#92400e;font-weight:500}
 .todo-note-row{font-size:11px;color:var(--text-light);margin-top:4px;display:flex;align-items:center;gap:4px}
 .todo-note-row .note-sep{color:var(--border)}
@@ -881,7 +882,7 @@ function load(){
     state.projects=JSON.parse(localStorage.getItem(SK.projects)||'[]');
     // 数据迁移：旧版本补字段
     const now=Date.now();
-    state.todos.forEach(t=>{if(!t.journal)t.journal=[];if(!t.updatedAt)t.updatedAt=t.createdAt||now;});
+    state.todos.forEach(t=>{if(!t.journal)t.journal=[];if(!t.updatedAt)t.updatedAt=t.createdAt||now;if(t.startDate===undefined||t.startDate===null)t.startDate=t.deadline||'';});
     state.notes.forEach(n=>{if(!n.updatedAt)n.updatedAt=n.createdAt||now;});
     state.projects.forEach(p=>{if(!p.updatedAt)p.updatedAt=p.createdAt||now;});
     state.deleted=JSON.parse(localStorage.getItem(SK.deleted)||'[]');
@@ -899,6 +900,10 @@ function fmtDateTime(ts){if(!ts)return'';const d=new Date(ts);const p=n=>String(
 function getWeekRange(){const d=new Date();const day=d.getDay()||7;const mon=new Date(d);mon.setDate(d.getDate()-day+1);const sun=new Date(mon);sun.setDate(mon.getDate()+6);return{start:mon.toISOString().split('T')[0],end:sun.toISOString().split('T')[0]}}
 function isThisWeek(s){const r=getWeekRange();return s>=r.start&&s<=r.end}
 function daysOverdue(s){const t=todayStr();if(s>=t)return 0;const d1=new Date(s),d2=new Date(t);return Math.floor((d2-d1)/86400000)}
+// 任务有效开始日期：优先用 startDate，缺省回退到 deadline（兼容旧数据/云端同步项）
+function taskStart(t){return t.startDate||t.deadline||''}
+// 是否已进入「今日待办」：未完成的任务，开始日期 <= 今天即视为已开始（开始日期为空则视为已开始）
+function isTodoToday(t){if(t.done)return false;const tdy=todayStr();const sd=taskStart(t);return !sd||sd<=tdy}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function getProjectName(pid){const p=state.projects.find(x=>x.id===pid);return p?p.name:''}
 // Urgency background tint: overdue/P0 red, P1 orange, P2 blue, P3 gray
@@ -934,7 +939,7 @@ function sortTodosUnified(arr, nonOverdueBy){
 function renderSidebar(){
   const nav=document.getElementById('sidebarNav');
   const items=[
-    {id:'focus',label:'今日焦点',icon:IC.focus,count:state.todos.filter(t=>!t.done&&(!t.deadline||t.deadline<=todayStr())).length},
+    {id:'focus',label:'今日焦点',icon:IC.focus,count:state.todos.filter(t=>isTodoToday(t)).length},
     {id:'todos',label:'今天待办',icon:IC.todo,count:state.todos.filter(t=>!t.done).length},
     {id:'notes',label:'灵感速记',icon:IC.note,count:state.notes.length},
     {id:'projects',label:'项目跟进',icon:IC.project,count:state.projects.length},
@@ -1031,7 +1036,7 @@ function renderFocus(){
   // Compute stats
   const allTodos=state.todos.filter(t=>!t.done);
   const overdueTodos=allTodos.filter(t=>t.deadline&&daysOverdue(t.deadline)>0);
-  const todayTodos=allTodos.filter(t=>(!t.deadline)||t.deadline<=today);
+  const todayTodos=allTodos.filter(t=>isTodoToday(t));
   const stuckProjects=state.projects.filter(p=>p.blocked);
   const completedToday=state.todos.filter(t=>t.done&&t.completedAt&&t.completedAt>=new Date().setHours(0,0,0,0)).length;
   const activeProjects=state.projects.filter(p=>!p.blocked).length;
@@ -1220,9 +1225,9 @@ function renderTodos(){
   }
 
   // ===== Filter tab counts =====
-  const todayTodos=state.todos.filter(t=>!t.done&&(t.deadline<=today||!t.deadline));
+  const todayTodos=state.todos.filter(t=>isTodoToday(t));
   const overdueTodos=state.todos.filter(t=>!t.done&&t.deadline&&daysOverdue(t.deadline)>0);
-  const upcomingTodos=state.todos.filter(t=>!t.done&&t.deadline&&t.deadline>today);
+  const upcomingTodos=state.todos.filter(t=>!t.done&&taskStart(t)&&taskStart(t)>today);
   const activeTodos=state.todos.filter(t=>!t.done);
   const doneTodos=state.todos.filter(t=>t.done);
   const tabCounts={today:todayTodos.length,overdue:overdueTodos.length,upcoming:upcomingTodos.length,all:activeTodos.length,done:doneTodos.length};
@@ -1251,9 +1256,9 @@ function renderTodos(){
   // ===== Filter logic =====
   let filtered=[];
   switch(state.todoFilter){
-    case 'today': filtered=state.todos.filter(t=>!t.done&&(t.deadline<=today||!t.deadline));break;
+    case 'today': filtered=state.todos.filter(t=>isTodoToday(t));break;
     case 'overdue': filtered=state.todos.filter(t=>!t.done&&t.deadline&&daysOverdue(t.deadline)>0);break;
-    case 'upcoming': filtered=state.todos.filter(t=>!t.done&&t.deadline&&t.deadline>today);break;
+    case 'upcoming': filtered=state.todos.filter(t=>!t.done&&taskStart(t)&&taskStart(t)>today);break;
     case 'all': filtered=state.todos.filter(t=>!t.done);break;
     case 'done': filtered=state.todos.filter(t=>t.done);break;
   }
@@ -1265,6 +1270,14 @@ function renderTodos(){
   // Unified sort: 逾期置顶 → 逾期天数降序 → 同天数按优先级 → 非逾期先按截止日期升序(同日按优先级)
   if(state.todoFilter==='done'){
     filtered=[...filtered].sort((a,b)=>(b.completedAt||0)-(a.completedAt||0));
+  }else if(state.todoFilter==='upcoming'){
+    // 即将到来：按开始日期升序（开始日期为空排最后），同日按优先级
+    const po={P0:0,P1:1,P2:2,P3:3};
+    filtered=[...filtered].sort((a,b)=>{
+      const as=taskStart(a)||'9999-12-31', bs=taskStart(b)||'9999-12-31';
+      if(as!==bs)return as<bs?-1:1;
+      return (po[a.priority]??99)-(po[b.priority]??99);
+    });
   }else{
     filtered=sortTodosUnified(filtered, 'deadline');
   }
@@ -1273,15 +1286,17 @@ function renderTodos(){
   const renderItem=(t)=>{
     let h='';
     const od=!t.done&&t.deadline&&daysOverdue(t.deadline)>0;
+      const up=!t.done&&taskStart(t)&&taskStart(t)>today;
       const pn=getProjectName(t.projectId);
       const jcount=(t.journal||[]).length;
       const priColor=PRIORITY_COLORS[t.priority];
       const noteLines=[];
       if(od) noteLines.push('昨日未完成 · 已带到今天');
-      if(t.deadline&&!od&&t.deadline!==today) noteLines.push(fmtDate(t.deadline));
+      else if(up) noteLines.push('开始于 '+fmtDate(taskStart(t)));
+      else if(t.deadline&&t.deadline!==today) noteLines.push(fmtDate(t.deadline));
       if(t.deferredCount>0) noteLines.push(`已顺延 ${t.deferredCount} 次`);
 
-      h+=`<div class="todo-item ${od?'overdue':''} ${t.done?'done':''}" id="todoItem-${t.id}">
+      h+=`<div class="todo-item ${od?'overdue':''} ${up?'upcoming':''} ${t.done?'done':''}" id="todoItem-${t.id}">
         <div class="todo-priority-bar" style="background:${priColor}"></div>
         <div class="todo-item-main">
           <div class="todo-checkbox ${t.done?'checked':''}" onclick="toggleTodo('${t.id}')">${IC.check}</div>
@@ -1290,6 +1305,7 @@ function renderTodos(){
             <div class="todo-tag-row">
               <span class="priority-badge priority-${t.priority}">${PRIORITY_LABELS[t.priority]}</span>
               ${od?`<span class="overdue-tag">逾期 ${daysOverdue(t.deadline)} 天</span>`:''}
+              ${up?`<span class="upcoming-tag">未开始</span>`:''}
               ${pn?`<span class="project-tag-outline">${esc(pn)}</span>`:''}
               ${t.deferredCount>0?`<span class="deferred-tag-pill">顺延 ${t.deferredCount} 次</span>`:''}
             </div>
@@ -1997,6 +2013,7 @@ function openTodoModal(id, presetProjectId){
         <option value="P2" ${t&&t.priority==='P2'?'selected':''}>一般（有空做）</option>
         <option value="P3" ${t&&t.priority==='P3'?'selected':''}>低优先级</option>
       </select></div>
+      <div class="todo-edit-field"><label>开始日期（不填默认今天，到了才开始出现在待办）</label><input type="date" id="editTodoStart" value="${t?t.startDate||t.deadline||'':todayStr()}"></div>
       <div class="todo-edit-field"><label>截止日期</label><input type="date" id="editTodoDeadline" value="${t?t.deadline||'':todayStr()}"></div>
       <div class="todo-edit-field"><label>关联项目（可不选，输入任意部分名称即可联想）</label><div class="proj-select-wrap">
         <input id="editTodoProjectInput" class="proj-select-input" value="${presetProj?esc(getProjectName(presetProj)):''}" placeholder="输入项目名搜索…" autocomplete="off">
@@ -2082,6 +2099,7 @@ function saveTodoModal(){
   if(!title){alert('请输入任务内容');return}
   const priority=document.getElementById('editTodoPriority').value;
   const deadline=document.getElementById('editTodoDeadline').value||'';
+  const startDate=document.getElementById('editTodoStart').value||'';
   let projectId=document.getElementById('editTodoProject').value||null;
   if(!projectId){
     const q=document.getElementById('editTodoProjectInput').value.trim().toLowerCase();
@@ -2092,10 +2110,12 @@ function saveTodoModal(){
     // Edit existing
     const t=state.todos.find(x=>x.id===editingTodoId);if(!t)return;
     t.title=title;t.priority=priority;t.deadline=deadline||null;
+    t.startDate=startDate||null;
     t.projectId=projectId;t.updatedAt=Date.now();
   }else{
-    // Create new
+    // Create new：开始日期未填则默认今天（立即进入待办）
     state.todos.push({id:genId(),title,priority,deadline:deadline||todayStr(),
+      startDate:startDate||todayStr(),
       done:false,createdAt:Date.now(),completedAt:null,updatedAt:Date.now(),
       projectId,deferredCount:0,journal:[]});
   }
@@ -2115,7 +2135,7 @@ function toggleTodo(id){
 }
 function deferTodo(id){
   const t=state.todos.find(x=>x.id===id);if(!t)return;
-  t.deadline=dateStr(1);
+  t.startDate=dateStr(1);t.deadline=dateStr(1);
   t.deferredCount=(t.deferredCount||0)+1;
   t.updatedAt=Date.now();
   save();renderAll();
@@ -2126,7 +2146,7 @@ function deferAllOverdue(){
   const overdue=state.todos.filter(t=>!t.done&&t.deadline&&daysOverdue(t.deadline)>0);
   if(overdue.length===0)return;
   overdue.forEach(t=>{
-    t.deadline=dateStr(1);
+    t.startDate=dateStr(1);t.deadline=dateStr(1);
     t.deferredCount=(t.deferredCount||0)+1;
     t.updatedAt=Date.now();
   });
