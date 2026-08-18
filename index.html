@@ -540,7 +540,8 @@ a{color:var(--primary);text-decoration:none}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           导入
         </button>
-        <button class="btn btn-sm btn-danger" onclick="clearAllData()">清空示例</button>
+        <button class="btn btn-sm" onclick="cleanupSampleData()">清理演示数据</button>
+        <button class="btn btn-sm btn-danger" onclick="clearAllData()">清空全部数据</button>
         <button class="btn btn-sm" onclick="openSyncSettings()">同步设置</button>
         <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
       </div>
@@ -553,6 +554,14 @@ a{color:var(--primary);text-decoration:none}
     <span>数据已积累 <strong id="reminderCount">20</strong> 条，建议导出一次备份，避免清理浏览器时丢失</span>
     <button class="btn btn-sm btn-primary" onclick="exportData()">立即导出</button>
     <button class="close" onclick="document.getElementById('exportReminder').classList.remove('show')">&times;</button>
+  </div>
+
+  <!-- ===== Sample Data Reminder ===== -->
+  <div class="export-reminder sample-reminder" id="sampleReminder">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <span>检测到 <strong id="sampleCount">0</strong> 条示例 / 演示数据，可能与你的真实数据混杂。</span>
+    <button class="btn btn-sm btn-danger" onclick="cleanupSampleData()">清理演示数据</button>
+    <button class="close" onclick="document.getElementById('sampleReminder').classList.remove('show')">&times;</button>
   </div>
 
   <!-- ===== Top Alert: 今天要处理 ===== -->
@@ -657,6 +666,7 @@ const IC = {
 
 // ===== Storage =====
 const SK = {todos:'wb_office_todos',notes:'wb_office_notes',projects:'wb_office_projects',sample:'wb_office_sample_loaded'};
+const ENABLE_AUTO_SEED=false; // 默认不自动灌入示例数据，避免与真实数据混杂
 const PRIORITY_LABELS = {P0:'紧急',P1:'重要',P2:'一般',P3:'低'};
 const PRIORITY_COLORS = {P0:'#ef4444',P1:'#f97316',P2:'#3b82f6',P3:'#94a3b8'};
 const JOURNAL_COLORS = ['#1e293b','#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
@@ -2261,15 +2271,56 @@ async function clearAllData(){
   });
 }
 
+// ===== 示例/演示数据识别与清理 =====
+// 已知示例数据特征（与 loadSampleData 保持一致），用于识别旧版未打 demo 标记的示例
+const SAMPLE_TODO_TITLES=new Set(['整理Q3季度汇报材料','回复客户合同邮件','准备周五产品评审会PPT','更新项目技术文档','完成需求文档评审','整理桌面文件']);
+const SAMPLE_NOTE_CONTENTS=new Set(['可以考虑用自动化脚本处理重复性报表，省下的时间用来做深度分析','竞品分析：对手的新功能上线了，交互做得很流畅，我们需要加快节奏','团队周会可以改成站会形式，15分钟搞定，留出更多时间执行']);
+const SAMPLE_PROJECT_NAMES=new Set(['官网改版','数据中台']);
+const SAMPLE_JOURNAL=new Set(['收集了各部门Q3数据，发现销售部的数据格式不统一，需要找他们确认','销售部已回复，数据整理中。汇报框架已搭好，先填销售和市场部分','产品经理给了新版需求文档，变化不少，PPT可能需要大改','会议定在下午3点，提前把评审意见整理好','评审通过了，产品确认下周一联调，已同步给开发']);
+function sampleTodoKind(t){
+  if(t.demo)return 'demo';
+  if(!SAMPLE_TODO_TITLES.has(t.title))return '';
+  const js=(t.journal||[]).map(j=>j.content);
+  if(js.some(c=>SAMPLE_JOURNAL.has(c)))return 'journal';
+  if(t.projectId && SAMPLE_PROJECT_NAMES.has(getProjectName(t.projectId)))return 'project';
+  return 'title'; // 仅标题命中，需用户在确认框里核对
+}
+function isSampleTodo(t){return sampleTodoKind(t)!=='';}
+function isSampleNote(n){ if(n.demo)return true; return SAMPLE_NOTE_CONTENTS.has(n.content); }
+function isSampleProject(p){ if(p.demo)return true; return SAMPLE_PROJECT_NAMES.has(p.name); }
+function cleanupSampleData(){
+  const delProjects=state.projects.filter(isSampleProject);
+  const delTodos=state.todos.filter(isSampleTodo);
+  const delNotes=state.notes.filter(isSampleNote);
+  const total=delProjects.length+delTodos.length+delNotes.length;
+  if(total===0){alert('没有发现示例/演示数据，你的数据都是真实录入的 👍');return;}
+  let preview='';
+  delProjects.forEach(p=>preview+=`· 项目：${esc(p.name)}<br>`);
+  delTodos.forEach(t=>preview+=`· 任务：${esc(t.title)}${sampleTodoKind(t)==='title'?' <span style="color:#b45309">（仅按标题匹配，请确认）</span>':''}<br>`);
+  delNotes.forEach(n=>preview+=`· 灵感：${esc((n.content||'').slice(0,24))}…<br>`);
+  showConfirm('清理演示数据',`将删除以下 <b>${total}</b> 条示例/演示数据（不会影响你的真实数据）：<br><br>${preview}<br>建议先点右上角“导出备份”留存。`,function(){
+    const delPids=new Set(delProjects.map(p=>p.id));
+    state.projects=state.projects.filter(p=>!isSampleProject(p));
+    state.todos=state.todos.filter(t=>{
+      if(isSampleTodo(t))return false;
+      if(delPids.has(t.projectId))t.projectId=null; // 解除指向已删示例项目的关联
+      return true;
+    });
+    state.notes=state.notes.filter(n=>!isSampleNote(n));
+    save();renderAll();
+    alert(`已清理 ${total} 条示例/演示数据，不影响真实数据。`);
+  },'清理演示数据');
+}
+
 // ===== Confirm Dialog =====
-function showConfirm(title,msg,onOk){
+function showConfirm(title,msg,onOk,okText){
   const overlay=document.createElement('div');
   overlay.className='confirm-overlay';
   overlay.innerHTML=`<div class="confirm-dialog">
     <h3>${title}</h3><p>${msg}</p>
     <div class="confirm-dialog-actions">
       <button class="btn" onclick="this.closest('.confirm-overlay').remove()">取消</button>
-      <button class="btn btn-danger" id="confirmOkBtn">确定清空</button>
+      <button class="btn btn-danger" id="confirmOkBtn">${okText||'确定清空'}</button>
     </div></div>`;
   document.body.appendChild(overlay);
   overlay.querySelector('#confirmOkBtn').onclick=function(){overlay.remove();onOk()};
@@ -2324,35 +2375,43 @@ function renderAll(){
   renderTopAlert();
   renderCurrentTab();
   checkExportReminder();
+  checkSampleReminder();
+}
+function checkSampleReminder(){
+  const el=document.getElementById('sampleReminder');
+  if(!el)return;
+  const n=state.todos.filter(isSampleTodo).length+state.notes.filter(isSampleNote).length+state.projects.filter(isSampleProject).length;
+  if(n>0){el.classList.add('show');document.getElementById('sampleCount').textContent=n;}
+  else el.classList.remove('show');
 }
 
 // ===== Sample Data =====
 function loadSampleData(){
   const p1=genId(),p2=genId(),now=Date.now();
   state.projects=[
-    {id:p1,name:'官网改版',currentStep:'前端页面开发中',nextStep:'联调测试',blocked:false,blockedNote:'',createdAt:now-86400000*5,updatedAt:now-86400000*5},
-    {id:p2,name:'数据中台',currentStep:'接口对接',nextStep:'性能压测',blocked:true,blockedNote:'等运维分配测试服务器，已催3次',createdAt:now-86400000*8,updatedAt:now-86400000*8},
+    {id:p1,demo:true,name:'官网改版',currentStep:'前端页面开发中',nextStep:'联调测试',blocked:false,blockedNote:'',createdAt:now-86400000*5,updatedAt:now-86400000*5},
+    {id:p2,demo:true,name:'数据中台',currentStep:'接口对接',nextStep:'性能压测',blocked:true,blockedNote:'等运维分配测试服务器，已催3次',createdAt:now-86400000*8,updatedAt:now-86400000*8},
   ];
   state.todos=[
-    {id:genId(),title:'整理Q3季度汇报材料',priority:'P0',deadline:dateStr(-1),done:false,createdAt:now-86400000*2,completedAt:null,updatedAt:now-86400000*2,projectId:p1,deferredCount:1,journal:[
+    {id:genId(),demo:true,title:'整理Q3季度汇报材料',priority:'P0',deadline:dateStr(-1),done:false,createdAt:now-86400000*2,completedAt:null,updatedAt:now-86400000*2,projectId:p1,deferredCount:1,journal:[
       {date:dateStr(-3),content:'收集了各部门Q3数据，发现销售部的数据格式不统一，需要找他们确认',createdAt:now-86400000*3},
       {date:dateStr(-2),content:'销售部已回复，数据整理中。汇报框架已搭好，先填销售和市场部分',createdAt:now-86400000*2},
     ]},
-    {id:genId(),title:'回复客户合同邮件',priority:'P1',deadline:todayStr(),done:false,createdAt:now-86400000,completedAt:null,updatedAt:now-86400000,projectId:null,deferredCount:0,journal:[]},
-    {id:genId(),title:'准备周五产品评审会PPT',priority:'P1',deadline:dateStr(3),done:false,createdAt:now-86400000,completedAt:null,updatedAt:now-86400000,projectId:p1,deferredCount:0,journal:[
+    {id:genId(),demo:true,title:'回复客户合同邮件',priority:'P1',deadline:todayStr(),done:false,createdAt:now-86400000,completedAt:null,updatedAt:now-86400000,projectId:null,deferredCount:0,journal:[]},
+    {id:genId(),demo:true,title:'准备周五产品评审会PPT',priority:'P1',deadline:dateStr(3),done:false,createdAt:now-86400000,completedAt:null,updatedAt:now-86400000,projectId:p1,deferredCount:0,journal:[
       {date:dateStr(-1),content:'产品经理给了新版需求文档，变化不少，PPT可能需要大改',createdAt:now-86400000},
     ]},
-    {id:genId(),title:'更新项目技术文档',priority:'P2',deadline:dateStr(4),done:false,createdAt:now-86400000,completedAt:null,updatedAt:now-86400000,projectId:p2,deferredCount:0,journal:[]},
-    {id:genId(),title:'完成需求文档评审',priority:'P1',deadline:dateStr(-1),done:true,createdAt:now-86400000*3,completedAt:now-86400000,updatedAt:now-86400000,projectId:p1,deferredCount:0,journal:[
+    {id:genId(),demo:true,title:'更新项目技术文档',priority:'P2',deadline:dateStr(4),done:false,createdAt:now-86400000,completedAt:null,updatedAt:now-86400000,projectId:p2,deferredCount:0,journal:[]},
+    {id:genId(),demo:true,title:'完成需求文档评审',priority:'P1',deadline:dateStr(-1),done:true,createdAt:now-86400000*3,completedAt:now-86400000,updatedAt:now-86400000,projectId:p1,deferredCount:0,journal:[
       {date:dateStr(-4),content:'会议定在下午3点，提前把评审意见整理好',createdAt:now-86400000*4},
       {date:dateStr(-3),content:'评审通过了，产品确认下周一联调，已同步给开发',createdAt:now-86400000*3},
     ]},
-    {id:genId(),title:'整理桌面文件',priority:'P3',deadline:dateStr(7),done:false,createdAt:now-86400000,completedAt:null,updatedAt:now-86400000,projectId:null,deferredCount:0,journal:[]},
+    {id:genId(),demo:true,title:'整理桌面文件',priority:'P3',deadline:dateStr(7),done:false,createdAt:now-86400000,completedAt:null,updatedAt:now-86400000,projectId:null,deferredCount:0,journal:[]},
   ];
   state.notes=[
-    {id:genId(),content:'可以考虑用自动化脚本处理重复性报表，省下的时间用来做深度分析',tags:['效率','想法'],createdAt:now-86400000*2,updatedAt:now-86400000*2},
-    {id:genId(),content:'竞品分析：对手的新功能上线了，交互做得很流畅，我们需要加快节奏',tags:['竞品','urgent'],createdAt:now-86400000,updatedAt:now-86400000},
-    {id:genId(),content:'团队周会可以改成站会形式，15分钟搞定，留出更多时间执行',tags:['管理','效率'],createdAt:now-3600000*3,updatedAt:now-3600000*3},
+    {id:genId(),demo:true,content:'可以考虑用自动化脚本处理重复性报表，省下的时间用来做深度分析',tags:['效率','想法'],createdAt:now-86400000*2,updatedAt:now-86400000*2},
+    {id:genId(),demo:true,content:'竞品分析：对手的新功能上线了，交互做得很流畅，我们需要加快节奏',tags:['竞品','urgent'],createdAt:now-86400000,updatedAt:now-86400000},
+    {id:genId(),demo:true,content:'团队周会可以改成站会形式，15分钟搞定，留出更多时间执行',tags:['管理','效率'],createdAt:now-3600000*3,updatedAt:now-3600000*3},
   ];
   save();
 }
@@ -2360,7 +2419,7 @@ function loadSampleData(){
 // ===== Init =====
 async function init(){
   load();
-  if(!localStorage.getItem(SK.sample)&&state.todos.length===0&&state.notes.length===0&&state.projects.length===0){
+  if(ENABLE_AUTO_SEED&&!localStorage.getItem(SK.sample)&&state.todos.length===0&&state.notes.length===0&&state.projects.length===0){
     loadSampleData();
   }
   renderAll();
