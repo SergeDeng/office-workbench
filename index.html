@@ -586,6 +586,7 @@ a{color:var(--primary);text-decoration:none}
         <div class="sync-status" id="syncStatus">
           <span class="sync-dot syncing" id="syncDot"></span>
           <span class="sync-text" id="syncText">连接中...</span>
+          <button class="sync-btn" onclick="syncNow()">立即同步</button>
         </div>
       </div>
     </aside>
@@ -641,6 +642,7 @@ a{color:var(--primary);text-decoration:none}
     <div class="bottom-nav-sync" id="mobileSyncStatus">
       <span class="sync-dot syncing" id="mobileSyncDot"></span>
       <span class="sync-text" id="mobileSyncText">连接中...</span>
+      <button class="sync-btn" onclick="syncNow()">同步</button>
     </div>
   </nav>
 </div>
@@ -665,13 +667,13 @@ const IC = {
 };
 
 // ===== Storage =====
-const SK = {todos:'wb_office_todos',notes:'wb_office_notes',projects:'wb_office_projects',sample:'wb_office_sample_loaded'};
+const SK = {todos:'wb_office_todos',notes:'wb_office_notes',projects:'wb_office_projects',deleted:'wb_office_deleted',sample:'wb_office_sample_loaded',syncBase:'wb_office_sync_base'};
 const ENABLE_AUTO_SEED=false; // 默认不自动灌入示例数据，避免与真实数据混杂
 const PRIORITY_LABELS = {P0:'紧急',P1:'重要',P2:'一般',P3:'低'};
 const PRIORITY_COLORS = {P0:'#ef4444',P1:'#f97316',P2:'#3b82f6',P3:'#94a3b8'};
 const JOURNAL_COLORS = ['#1e293b','#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
 
-let state = {todos:[],notes:[],projects:[],currentTab:'focus',noteTagFilter:null,todoFilter:'today',projectFilter:'',noteSearchQuery:'',projectSearchQuery:''};
+let state = {todos:[],notes:[],projects:[],deleted:[],currentTab:'focus',noteTagFilter:null,todoFilter:'today',projectFilter:'',noteSearchQuery:'',projectSearchQuery:''};
 
 // ===== GitHub Gist Sync =====
 const GIST_ID = '9c80460a40683448346a1c58610e0066';
@@ -692,86 +694,142 @@ function updateSyncUI(status, msg){
   if(mDot&&mText){ mDot.className = 'sync-dot ' + status; mText.textContent = msg; }
 }
 
-async function initGistSync(){
-  try{
-    updateSyncUI('syncing','拉取云端...');
+// ---------- 同步核心：拉取 → 三方合并 → 上传 ----------
+let syncInFlight = false;
 
-    // Download
-    const dlResp = await fetch(GIST_RAW + '?t=' + Date.now());
-    if(!dlResp.ok){
-      if(dlResp.status === 404) throw new Error('Gist 不存在');
-      throw new Error(`拉取失败(${dlResp.status})`);
-    }
-    const cloudData = await dlResp.json();
-    if(!cloudData || typeof cloudData !== 'object') throw new Error('数据格式异常');
+function loadSyncBase(){ try{ return JSON.parse(localStorage.getItem(SK.syncBase)||'null'); }catch(e){ return null; } }
+function saveSyncBase(obj){ try{ localStorage.setItem(SK.syncBase, JSON.stringify(obj)); }catch(e){} }
 
-    // Merge: cloud newer wins
-    let merged = false;
-    ['todos','notes','projects'].forEach(key => {
-      if(!cloudData[key] || !Array.isArray(cloudData[key])) return;
-      const localMap = new Map();
-      state[key].forEach(item => localMap.set(item.id, item));
-      cloudData[key].forEach(cd => {
-        if(!cd || !cd.id) return;
-        const local = localMap.get(cd.id);
-        if(!local || (cd.updatedAt && cd.updatedAt >= (local.updatedAt||0))){
-          const idx = state[key].findIndex(x => x.id === cd.id);
-          if(idx >= 0) state[key][idx] = cd; else state[key].push(cd);
-          merged = true;
-        }
-        localMap.delete(cd.id);
-      });
-    });
-    if(merged){ saveLocal(); renderAll(); }
-
-    // Upload local to cloud if local has data cloud doesn't
-    if(getGistToken()){
-      scheduleGistUpload();
-      updateSyncUI('synced','已同步 \u2713');
-    }else{
-      updateSyncUI('offline','未配置同步Token');
-    }
-  }catch(e){
-    console.warn('Gist 同步初始化失败:', e.message);
-    updateSyncUI('offline','离线模式 \u25CB');
-  }
+function mapById(arr){ const m=new Map(); (arr||[]).forEach(x=>{ if(x&&x.id) m.set(x.id,x); }); return m; }
+function deepEq(a,b){ try{ return JSON.stringify(a)===JSON.stringify(b); }catch(e){ return false; } }
+function unionJournal(a,b){
+  const out=[]; const seen=new Set();
+  [].concat(a||[], b||[]).forEach(j=>{
+    if(!j) return;
+    const k=(j.createdAt||0)+'|'+(j.content||'');
+    if(!seen.has(k)){ seen.add(k); out.push(j); }
+  });
+  return out;
 }
-
-function scheduleGistUpload(){
-  if(syncStatus === 'offline') return;
-  if(syncTimer) clearTimeout(syncTimer);
-  syncTimer = setTimeout(uploadToGist, 800);
+// 单集合三方合并（本地 / 云端 / 上次同步基线）
+function mergeCollection(localArr, cloudArr, baseArr, fieldKeys, type, conflicts){
+  const lm=mapById(localArr), cm=mapById(cloudArr), bm=mapById(baseArr||[]);
+  const ids=new Set([...lm.keys(), ...cm.keys()]);
+  const result=[];
+  ids.forEach(id=>{
+    const l=lm.get(id), c=cm.get(id), b=bm.get(id);
+    if(l&&!c){ result.push(l); }
+    else if(!l&&c){ result.push(c); }
+    else if(l&&c){
+      if(!baseArr){ // 首次同步（无基线）：整条按 updatedAt 取最新，不记冲突
+        const merged=(c.updatedAt>=(l.updatedAt||0))?Object.assign({},c):Object.assign({},l);
+        merged.journal=unionJournal(l.journal,c.journal);
+        merged.updatedAt=Math.max(l.updatedAt||0,c.updatedAt||0);
+        result.push(merged);
+      }else{
+        const merged=Object.assign({},l);
+        fieldKeys.forEach(f=>{
+          const lv=l[f], cv=c[f], bv=b?b[f]:undefined;
+          if(deepEq(lv,cv)){ merged[f]=lv; }
+          else if(deepEq(lv,bv)){ merged[f]=cv; }   // 本地未改 → 取云端
+          else if(deepEq(cv,bv)){ merged[f]=lv; }   // 云端未改 → 取本地
+          else { // 两端都改了同一字段 → 按最后修改时间保留最新（用户确认策略）
+            const cloudNewer=(c.updatedAt||0)>=(l.updatedAt||0);
+            merged[f]=cloudNewer?cv:lv;
+            conflicts.push({type, id, field:f, title:(l.title||c.title||l.content||c.content||id),
+              local:Array.isArray(lv)?lv.join(','):lv, cloud:Array.isArray(cv)?cv.join(','):cv,
+              winner:cloudNewer?'云端':'本地'});
+          }
+        });
+        merged.journal=unionJournal(l.journal,c.journal);
+        merged.updatedAt=Math.max(l.updatedAt||0,c.updatedAt||0);
+        result.push(merged);
+      }
+    }
+  });
+  return result;
 }
-
-async function uploadToGist(){
-  const tk = getGistToken();
+// 全量三方合并 + 删除墓碑传播
+function mergeAll(L, C, B){
+  const conflicts=[];
+  const merged={todos:[],notes:[],projects:[],deleted:[]};
+  const spec=[
+    {key:'todos', type:'todo', fields:['title','priority','deadline','done','projectId','completedAt','deferredCount','demo']},
+    {key:'notes', type:'note', fields:['content','tags']},
+    {key:'projects', type:'project', fields:['name','currentStep','nextStep','blocked','blockedNote']},
+  ];
+  spec.forEach(s=>{
+    merged[s.key]=mergeCollection(L[s.key], C[s.key], B?B[s.key]:null, s.fields, s.type, conflicts);
+  });
+  // 删除墓碑：两端合并，按 type+id 去重保留最新 deletedAt
+  const tmap=new Map();
+  [].concat(L.deleted||[], C.deleted||[]).forEach(t=>{ if(!t||!t.id)return; const k=t.type+'|'+t.id; const ex=tmap.get(k); if(!ex||(t.deletedAt||0)>(ex.deletedAt||0)) tmap.set(k,t); });
+  let deleted=[...tmap.values()];
+  // 应用删除：若该项在合并后仍存在且最后编辑时间早于删除时间 → 删除；若编辑晚于删除 → 视为撤销删除，丢弃该墓碑
+  deleted=deleted.filter(t=>{
+    const arr=merged[t.type+'s']; if(!arr) return true;
+    const idx=arr.findIndex(x=>x.id===t.id);
+    if(idx<0) return true; // 已不存在，保留墓碑以便其它设备也能删除
+    const item=arr[idx];
+    if((item.updatedAt||0) <= t.deletedAt){ arr.splice(idx,1); return true; }
+    return false; // 删除后被编辑，撤销删除
+  });
+  merged.deleted=deleted;
+  return {merged, conflicts};
+}
+async function downloadGist(){
+  const resp=await fetch(GIST_RAW+'?t='+Date.now());
+  if(resp.status===404) return {todos:[],notes:[],projects:[],deleted:[]};
+  if(!resp.ok) throw new Error('拉取失败('+resp.status+')');
+  const d=await resp.json();
+  if(!d||typeof d!=='object') throw new Error('数据格式异常');
+  return {todos:Array.isArray(d.todos)?d.todos:[],notes:Array.isArray(d.notes)?d.notes:[],projects:Array.isArray(d.projects)?d.projects:[],deleted:Array.isArray(d.deleted)?d.deleted:[]};
+}
+async function pushGist(payload){
+  const tk=getGistToken();
+  const resp=await fetch(GIST_API,{method:'PATCH',headers:{'Authorization':'Bearer '+tk,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},body:JSON.stringify({description:'个人办公工作台 - 数据同步',files:{'workbench-data.json':{content:JSON.stringify(payload)}}})});
+  if(!resp.ok){ const err=await resp.text(); throw new Error('上传失败('+resp.status+'): '+err); }
+}
+// 一次完整同步：拉取云端 → 与本地三方合并 → 存本地并设为新基线 → 上传合并结果
+async function syncNow(){
+  if(syncInFlight) return;
+  const tk=getGistToken();
   if(!tk){ updateSyncUI('offline','未配置同步Token'); return; }
-  if(syncStatus === 'offline') return;
+  syncInFlight=true;
   try{
     updateSyncUI('syncing','同步中...');
-    const payload = { todos: state.todos, notes: state.notes, projects: state.projects };
-
-    const resp = await fetch(GIST_API, {
-      method:'PATCH',
-      headers:{
-        'Authorization':'Bearer '+tk,
-        'Content-Type':'application/json',
-        'Accept':'application/vnd.github.v3+json'
-      },
-      body: JSON.stringify({
-        description: '个人办公工作台 - 数据同步',
-        files: { 'workbench-data.json': { content: JSON.stringify(payload) } }
-      })
-    });
-    if(!resp.ok){
-      const err = await resp.text();
-      throw new Error(`上传失败(${resp.status}): ${err}`);
-    }
-    updateSyncUI('synced','已同步 \u2713');
+    const cloud=await downloadGist();
+    const base=loadSyncBase();
+    const {merged, conflicts}=mergeAll(state, cloud, base);
+    state.todos=merged.todos; state.notes=merged.notes; state.projects=merged.projects; state.deleted=merged.deleted;
+    saveLocal();
+    saveSyncBase({todos:merged.todos,notes:merged.notes,projects:merged.projects,deleted:merged.deleted});
+    await pushGist({todos:merged.todos,notes:merged.notes,projects:merged.projects,deleted:merged.deleted});
+    updateSyncUI('synced','已同步 ✓');
+    if(conflicts.length) showSyncConflicts(conflicts);
+    renderAll();
   }catch(e){
-    console.warn('Gist 上传失败:', e.message);
-    updateSyncUI('offline','离线模式 \u25CB');
-  }
+    console.warn('同步失败:', e&&e.message);
+    updateSyncUI('offline','离线模式 ○');
+  }finally{ syncInFlight=false; }
+}
+function scheduleGistUpload(){ if(syncTimer) clearTimeout(syncTimer); syncTimer=setTimeout(syncNow, 800); }
+async function initGistSync(){
+  if(!getGistToken()){ updateSyncUI('offline','未配置同步Token'); return; }
+  updateSyncUI('syncing','连接中...');
+  await syncNow();
+}
+async function uploadToGist(){ await syncNow(); } // 兼容旧引用
+function showSyncConflicts(list){
+  let old=document.getElementById('syncConflictBanner'); if(old) old.remove();
+  if(!list||!list.length) return;
+  const b=document.createElement('div');
+  b.id='syncConflictBanner';
+  b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#fff7ed;color:#9a3412;border-bottom:1px solid #fdba74;padding:10px 14px;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.12);line-height:1.6;';
+  const items=list.slice(0,30).map(c=>`<li style="margin:3px 0;">《${esc(c.title||c.id)}》的「${esc(c.field)}」两端不一致，已保留<b>${esc(c.winner)}</b>的值（本地：${esc(String(c.local))} ／ 云端：${esc(String(c.cloud))}）</li>`).join('');
+  b.innerHTML=`⚠️ 本次同步自动合并了 <b>${list.length}</b> 处冲突（按最后修改时间保留最新值）。<details style="margin-top:4px;"><summary style="cursor:pointer;">查看详情</summary><ul style="margin:6px 0 0;padding-left:18px;">${items}</ul></details><span style="float:right;cursor:pointer;font-weight:700;margin-left:12px;" onclick="this.parentNode.remove()">✕</span>`;
+  document.body.appendChild(b);
+  setTimeout(()=>{ if(b.parentNode) b.remove(); }, 15000);
 }
 
 function openSyncSettings(){
@@ -808,6 +866,7 @@ function saveLocal(){
     localStorage.setItem(SK.todos,JSON.stringify(state.todos));
     localStorage.setItem(SK.notes,JSON.stringify(state.notes));
     localStorage.setItem(SK.projects,JSON.stringify(state.projects));
+    localStorage.setItem(SK.deleted,JSON.stringify(state.deleted));
     localStorage.setItem(SK.sample,'1');
   }catch(e){alert('保存失败，存储空间可能已满：'+e.message)}
 }
@@ -825,6 +884,8 @@ function load(){
     state.todos.forEach(t=>{if(!t.journal)t.journal=[];if(!t.updatedAt)t.updatedAt=t.createdAt||now;});
     state.notes.forEach(n=>{if(!n.updatedAt)n.updatedAt=n.createdAt||now;});
     state.projects.forEach(p=>{if(!p.updatedAt)p.updatedAt=p.createdAt||now;});
+    state.deleted=JSON.parse(localStorage.getItem(SK.deleted)||'[]');
+    if(!Array.isArray(state.deleted))state.deleted=[];
   }catch(e){state.todos=[];state.notes=[];state.projects=[]}
 }
 
@@ -2074,6 +2135,7 @@ function deferAllOverdue(){
 }
 function deleteTodo(id){
   state.todos=state.todos.filter(x=>x.id!==id);
+  state.deleted.push({type:'todo',id,deletedAt:Date.now()});
   save();renderAll();
   scheduleGistUpload();
 }
@@ -2202,6 +2264,7 @@ function addNote(){openNoteModal()}
 function filterTag(tag){filterNoteTag(tag)}
 function deleteNote(id){
   state.notes=state.notes.filter(x=>x.id!==id);
+  state.deleted.push({type:'note',id,deletedAt:Date.now()});
   save();renderAll();
   scheduleGistUpload();
 }
@@ -2232,6 +2295,7 @@ function toggleBlocked(id){
 function deleteProject(id){
   state.projects=state.projects.filter(x=>x.id!==id);
   state.todos.forEach(t=>{if(t.projectId===id){t.projectId=null;t.updatedAt=Date.now()}});
+  state.deleted.push({type:'project',id,deletedAt:Date.now()});
   save();renderAll();
   scheduleGistUpload();
 }
@@ -2264,10 +2328,11 @@ function importData(event){
 }
 async function clearAllData(){
   showConfirm('清空所有数据','确定要清空全部数据吗？此操作不可撤销，建议先导出备份。',async function(){
-    state.todos=[];state.notes=[];state.projects=[];
-    localStorage.removeItem(SK.todos);localStorage.removeItem(SK.notes);localStorage.removeItem(SK.projects);
+    state.todos=[];state.notes=[];state.projects=[];state.deleted=[];
+    localStorage.removeItem(SK.todos);localStorage.removeItem(SK.notes);localStorage.removeItem(SK.projects);localStorage.removeItem(SK.deleted);
+    localStorage.removeItem(SK.syncBase);
     renderAll();
-    uploadToGist(); // 同步空数据到云端
+    try{ await pushGist({todos:[],notes:[],projects:[],deleted:[]}); updateSyncUI('synced','已同步 ✓'); }catch(e){ updateSyncUI('offline','离线模式 ○'); }
   });
 }
 
@@ -2424,6 +2489,7 @@ async function init(){
   }
   renderAll();
   initGistSync(); // 异步初始化云端，不阻塞页面渲染
+  setInterval(()=>{ if(getGistToken()) syncNow(); }, 60000); // 周期拉取，保证两端即使无操作也收敛到一致
 }
 init();
 </script>
