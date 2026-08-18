@@ -882,7 +882,9 @@ function load(){
     state.projects=JSON.parse(localStorage.getItem(SK.projects)||'[]');
     // 数据迁移：旧版本补字段
     const now=Date.now();
-    state.todos.forEach(t=>{if(!t.journal)t.journal=[];if(!t.updatedAt)t.updatedAt=t.createdAt||now;if(t.startDate===undefined||t.startDate===null)t.startDate=t.deadline||'';});
+    // 旧数据迁移：仅当 startDate 字段完全缺失(undefined)时，用 deadline 兜底保证不为空；
+    // 一旦设过值（含用户主动清空成的 null/''）则保持独立，不再等于 deadline。
+    state.todos.forEach(t=>{if(!t.journal)t.journal=[];if(!t.updatedAt)t.updatedAt=t.createdAt||now;if(t.startDate===undefined)t.startDate=t.deadline||'';});
     state.notes.forEach(n=>{if(!n.updatedAt)n.updatedAt=n.createdAt||now;});
     state.projects.forEach(p=>{if(!p.updatedAt)p.updatedAt=p.createdAt||now;});
     state.deleted=JSON.parse(localStorage.getItem(SK.deleted)||'[]');
