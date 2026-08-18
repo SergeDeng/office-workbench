@@ -882,9 +882,9 @@ function load(){
     state.projects=JSON.parse(localStorage.getItem(SK.projects)||'[]');
     // 数据迁移：旧版本补字段
     const now=Date.now();
-    // 旧数据迁移：仅当 startDate 字段完全缺失(undefined)时，用 deadline 兜底保证不为空；
-    // 一旦设过值（含用户主动清空成的 null/''）则保持独立，不再等于 deadline。
-    state.todos.forEach(t=>{if(!t.journal)t.journal=[];if(!t.updatedAt)t.updatedAt=t.createdAt||now;if(t.startDate===undefined)t.startDate=t.deadline||'';});
+    // 2026-08-18 取消「开始日期改为与截止日期一致」的要求：不再自动把 startDate 补成 deadline。
+    // 已录入任务保持 startDate 独立（缺失则为空，空开始日期在 isTodoToday 中默认视为立即进入待办）。
+    state.todos.forEach(t=>{if(!t.journal)t.journal=[];if(!t.updatedAt)t.updatedAt=t.createdAt||now;});
     state.notes.forEach(n=>{if(!n.updatedAt)n.updatedAt=n.createdAt||now;});
     state.projects.forEach(p=>{if(!p.updatedAt)p.updatedAt=p.createdAt||now;});
     state.deleted=JSON.parse(localStorage.getItem(SK.deleted)||'[]');
@@ -902,8 +902,9 @@ function fmtDateTime(ts){if(!ts)return'';const d=new Date(ts);const p=n=>String(
 function getWeekRange(){const d=new Date();const day=d.getDay()||7;const mon=new Date(d);mon.setDate(d.getDate()-day+1);const sun=new Date(mon);sun.setDate(mon.getDate()+6);return{start:mon.toISOString().split('T')[0],end:sun.toISOString().split('T')[0]}}
 function isThisWeek(s){const r=getWeekRange();return s>=r.start&&s<=r.end}
 function daysOverdue(s){const t=todayStr();if(s>=t)return 0;const d1=new Date(s),d2=new Date(t);return Math.floor((d2-d1)/86400000)}
-// 任务有效开始日期：优先用 startDate，缺省回退到 deadline（兼容旧数据/云端同步项）
-function taskStart(t){return t.startDate||t.deadline||''}
+// 任务有效开始日期：仅用 startDate。空开始日期在 isTodoToday 中按「不填默认今天」处理（即立即进入待办）。
+// 2026-08-18 取消「开始日期=截止日期」要求：不再用 deadline 兜底，开始日期与截止日期完全独立。
+function taskStart(t){return t.startDate||''}
 // 是否已进入「今日待办」：未完成的任务，开始日期 <= 今天即视为已开始（开始日期为空则视为已开始）
 function isTodoToday(t){if(t.done)return false;const tdy=todayStr();const sd=taskStart(t);return !sd||sd<=tdy}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
@@ -2015,7 +2016,7 @@ function openTodoModal(id, presetProjectId){
         <option value="P2" ${t&&t.priority==='P2'?'selected':''}>一般（有空做）</option>
         <option value="P3" ${t&&t.priority==='P3'?'selected':''}>低优先级</option>
       </select></div>
-      <div class="todo-edit-field"><label>开始日期（不填默认今天，到了才开始出现在待办）</label><input type="date" id="editTodoStart" value="${t?t.startDate||t.deadline||'':todayStr()}"></div>
+      <div class="todo-edit-field"><label>开始日期（不填默认今天，到了才开始出现在待办）</label><input type="date" id="editTodoStart" value="${t?t.startDate||'':todayStr()}"></div>
       <div class="todo-edit-field"><label>截止日期</label><input type="date" id="editTodoDeadline" value="${t?t.deadline||'':todayStr()}"></div>
       <div class="todo-edit-field"><label>关联项目（可不选，输入任意部分名称即可联想）</label><div class="proj-select-wrap">
         <input id="editTodoProjectInput" class="proj-select-input" value="${presetProj?esc(getProjectName(presetProj)):''}" placeholder="输入项目名搜索…" autocomplete="off">
