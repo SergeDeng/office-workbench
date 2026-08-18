@@ -728,15 +728,19 @@ function mergeCollection(localArr, cloudArr, baseArr, fieldKeys, type, conflicts
         merged.updatedAt=Math.max(l.updatedAt||0,c.updatedAt||0);
         result.push(merged);
       }else{
+        // 字段级合并：不再依据基线(base)做「本地未改/云端未改」裁决。
+        // 原因：若某次推送失败，base 可能领先于云端（base 是新值、云端仍是旧值），
+        // 此时旧逻辑会判定「本地==base、取云端」，把本地已保存的修改覆盖掉，
+        // 表现为「改了截止日期刷新又还原」。改为统一以最后修改时间(updatedAt)为准的 LWW，
+        // 即使 base 已损坏也能保持本地最新修改不被陈旧云端覆盖。
         const merged=Object.assign({},l);
         fieldKeys.forEach(f=>{
           const lv=l[f], cv=c[f], bv=b?b[f]:undefined;
-          if(deepEq(lv,cv)){ merged[f]=lv; }
-          else if(deepEq(lv,bv)){ merged[f]=cv; }   // 本地未改 → 取云端
-          else if(deepEq(cv,bv)){ merged[f]=lv; }   // 云端未改 → 取本地
-          else { // 两端都改了同一字段 → 按最后修改时间保留最新（用户确认策略）
-            const cloudNewer=(c.updatedAt||0)>=(l.updatedAt||0);
-            merged[f]=cloudNewer?cv:lv;
+          if(deepEq(lv,cv)){ merged[f]=lv; return; }
+          const cloudNewer=(c.updatedAt||0)>=(l.updatedAt||0);
+          merged[f]=cloudNewer?cv:lv;
+          // 仅当两端相对基线都发生了修改才记为冲突（仅供用户查看），不影响裁决
+          if(b && !deepEq(lv,bv) && !deepEq(cv,bv)){
             conflicts.push({type, id, field:f, title:(l.title||c.title||l.content||c.content||id),
               local:Array.isArray(lv)?lv.join(','):lv, cloud:Array.isArray(cv)?cv.join(','):cv,
               winner:cloudNewer?'云端':'本地'});
@@ -810,8 +814,11 @@ async function syncNow(){
       state.todos=merged.todos; state.notes=merged.notes; state.projects=merged.projects; state.deleted=merged.deleted;
       saveLocal();
     }
-    saveSyncBase({todos:merged.todos,notes:merged.notes,projects:merged.projects,deleted:merged.deleted});
     await pushGist({todos:merged.todos,notes:merged.notes,projects:merged.projects,deleted:merged.deleted});
+    // 仅当云端推送成功后，才把合并结果设为新基线。
+    // 若推送失败（网络/限流/令牌问题），绝不更新 base —— 避免 base 领先于云端而导致
+    // 本地已保存的修改在后续同步中被陈旧云端值覆盖（即「改了截止日期刷新又还原」）。
+    saveSyncBase({todos:merged.todos,notes:merged.notes,projects:merged.projects,deleted:merged.deleted});
     updateSyncUI('synced','已同步 ✓');
     if(conflicts.length) showSyncConflicts(conflicts);
     if(changed) renderAll();
