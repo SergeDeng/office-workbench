@@ -2477,7 +2477,6 @@ function renderAll(){
   renderSidebar();
   renderTopAlert();
   renderCurrentTab();
-  checkExportReminder();
   checkSampleReminder();
 }
 function checkSampleReminder(){
@@ -2526,6 +2525,7 @@ async function init(){
     loadSampleData();
   }
   renderAll();
+  checkExportReminder(); // 仅在页面首次打开时判断一次；同步成功等后续 render 不再自动弹出
   initGistSync(); // 异步初始化云端，不阻塞页面渲染
   setInterval(()=>{ if(getGistToken()) syncNow(); }, 60000); // 周期拉取，保证两端即使无操作也收敛到一致
 }
