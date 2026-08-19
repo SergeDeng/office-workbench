@@ -1978,13 +1978,14 @@ function renderPieChart(data){
 }
 
 function renderProjectBar(completed){
-  const pids=[...new Set(completed.map(t=>t.projectId).filter(Boolean))];
+  // 过滤掉无效 projectId：null / undefined / 空字符串 / 字符串 "undefined" / "null"
+  const pids=[...new Set(completed.map(t=>t.projectId).filter(id=>id&&id!=='undefined'&&id!=='null'))];
   if(pids.length===0&&completed.filter(t=>!t.projectId).length===0)return'<div class="chart-empty">本周暂无项目相关完成记录</div>';
   
   const data=[];
   pids.forEach(pid=>{
     const cnt=completed.filter(t=>t.projectId===pid).length;
-    data.push({label:getProjectName(pid)||'已删除',value:cnt});
+    data.push({label:getProjectName(pid)||'已删除项目',value:cnt});
   });
   const noProj=completed.filter(t=>!t.projectId).length;
   if(noProj>0)data.push({label:'独立任务',value:noProj});
@@ -1996,7 +1997,8 @@ function renderProjectBar(completed){
   data.forEach((d,i)=>{
     const w=(d.value/maxV)*chartW;
     const y=i*(barH+gap);
-    const lbl=d.label.length>7?d.name?.substring(0,7)+'…':d.label.substring(0,7)+(d.label.length>7?'…':'');
+    // [fix] 原代码错误使用 d.name（不存在），应为 d.label
+    const lbl=d.label.length>7?d.label.substring(0,7)+'…':d.label;
     bars+=`<text x="0" y="${y+16}" font-size="12" fill="#64748b">${esc(lbl)}</text>
     <rect x="${labelW}" y="${y}" width="${chartW}" height="${barH}" fill="#f1f5f9" rx="4"/>
     <rect x="${labelW}" y="${y}" width="${w.toFixed(1)}" height="${barH}" fill="#0d9488" rx="4"/>
