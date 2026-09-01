@@ -270,14 +270,11 @@ a{color:var(--primary);text-decoration:none}
 .notes-pinned-section{margin-bottom:16px}
 .notes-pinned-header{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--primary);margin-bottom:8px}
 .notes-pinned-header .notes-pinned-hint{font-weight:400;color:var(--text-light);font-size:11px}
-.notes-pinned-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center}
-.notes-pin-btn{margin-left:3px;display:inline-flex;align-items:center;justify-content:center;padding:2px;border-radius:4px;color:var(--text-light);cursor:pointer;opacity:.75;transition:all .15s}
-.notes-pin-btn:hover{color:var(--primary);opacity:1}
-.notes-pin-btn.pinned{color:var(--primary);opacity:1}
-.notes-tag-pill.active .notes-pin-btn,.notes-tag-pill.active .notes-pin-btn:hover{color:#fff}
 .note-card.pinned{border-left-color:#f59e0b}
-.note-card .note-card-pinmark{position:absolute;top:8px;left:8px;color:#f59e0b;opacity:0;transition:opacity .15s}
-.note-card.pinned .note-card-pinmark{opacity:1}
+.note-card .note-card-pin{position:absolute;top:8px;left:8px;color:var(--text-light);cursor:pointer;background:none;border:none;padding:4px;border-radius:4px;opacity:0;transition:opacity .15s,color .15s}
+.note-card:hover .note-card-pin{opacity:.75}
+.note-card .note-card-pin:hover{color:#f59e0b;opacity:1}
+.note-card.pinned .note-card-pin{color:#f59e0b;opacity:1}
 .note-card.pinned .note-card-delete{opacity:1}
 
 /* ===== Projects ===== */
@@ -681,13 +678,13 @@ const IC = {
 };
 
 // ===== Storage =====
-const SK = {todos:'wb_office_todos',notes:'wb_office_notes',projects:'wb_office_projects',deleted:'wb_office_deleted',sample:'wb_office_sample_loaded',syncBase:'wb_office_sync_base',pinnedNoteTags:'wb_office_pinned_note_tags'};
+const SK = {todos:'wb_office_todos',notes:'wb_office_notes',projects:'wb_office_projects',deleted:'wb_office_deleted',sample:'wb_office_sample_loaded',syncBase:'wb_office_sync_base'};
 const ENABLE_AUTO_SEED=false; // 默认不自动灌入示例数据，避免与真实数据混杂
 const PRIORITY_LABELS = {P0:'紧急',P1:'重要',P2:'一般',P3:'低'};
 const PRIORITY_COLORS = {P0:'#ef4444',P1:'#f97316',P2:'#3b82f6',P3:'#94a3b8'};
 const JOURNAL_COLORS = ['#1e293b','#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
 
-let state = {todos:[],notes:[],projects:[],deleted:[],currentTab:'focus',noteTagFilter:null,todoFilter:'today',projectFilter:'',noteSearchQuery:'',projectSearchQuery:'',pinnedNoteTags:[]};
+let state = {todos:[],notes:[],projects:[],deleted:[],currentTab:'focus',noteTagFilter:null,todoFilter:'today',projectFilter:'',noteSearchQuery:'',projectSearchQuery:''};
 
 // ===== GitHub Gist Sync =====
 const GIST_ID = '9c80460a40683448346a1c58610e0066';
@@ -773,7 +770,7 @@ function mergeAll(L, C, B){
   const merged={todos:[],notes:[],projects:[],deleted:[]};
   const spec=[
     {key:'todos', type:'todo', fields:['title','priority','deadline','startDate','done','projectId','completedAt','deferredCount','demo']},
-    {key:'notes', type:'note', fields:['content','tags']},
+    {key:'notes', type:'note', fields:['content','tags','pinned']},
     {key:'projects', type:'project', fields:['name','currentStep','nextStep','blocked','blockedNote']},
   ];
   spec.forEach(s=>{
@@ -894,7 +891,6 @@ function saveLocal(){
     localStorage.setItem(SK.notes,JSON.stringify(state.notes));
     localStorage.setItem(SK.projects,JSON.stringify(state.projects));
     localStorage.setItem(SK.deleted,JSON.stringify(state.deleted));
-    localStorage.setItem(SK.pinnedNoteTags,JSON.stringify(state.pinnedNoteTags||[]));
     localStorage.setItem(SK.sample,'1');
   }catch(e){alert('保存失败，存储空间可能已满：'+e.message)}
 }
@@ -916,8 +912,6 @@ function load(){
     state.projects.forEach(p=>{if(!p.updatedAt)p.updatedAt=p.createdAt||now;});
     state.deleted=JSON.parse(localStorage.getItem(SK.deleted)||'[]');
     if(!Array.isArray(state.deleted))state.deleted=[];
-    state.pinnedNoteTags=JSON.parse(localStorage.getItem(SK.pinnedNoteTags)||'[]');
-    if(!Array.isArray(state.pinnedNoteTags))state.pinnedNoteTags=[];
   }catch(e){state.todos=[];state.notes=[];state.projects=[]}
 }
 
@@ -1413,7 +1407,7 @@ function noteCardHtml(n,pinned){
   const d=new Date(n.createdAt);
   const dateStr=(d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
   return `<div class="note-card${pinned?' pinned':''}">
-    ${pinned?`<span class="note-card-pinmark" title="已置顶">${IC.pin}</span>`:''}
+    <button class="note-card-pin" onclick="togglePinNote('${n.id}')" title="${pinned?'取消置顶':'置顶此速记'}">${IC.pin}</button>
     <button class="note-card-delete" onclick="deleteNote('${n.id}')" title="删除">${IC.trash}</button>
     <div class="note-card-text">${esc(n.content)}</div>
     <div class="note-card-footer">
@@ -1422,13 +1416,12 @@ function noteCardHtml(n,pinned){
     </div>
   </div>`;
 }
-function togglePinNoteTag(tag){
-  if(!tag)return;
-  const arr=state.pinnedNoteTags||(state.pinnedNoteTags=[]);
-  const i=arr.indexOf(tag);
-  if(i>=0)arr.splice(i,1);else arr.push(tag);
-  save();
-  renderNotes();
+function togglePinNote(id){
+  const n=state.notes.find(x=>x.id===id);if(!n)return;
+  n.pinned=!n.pinned;
+  n.updatedAt=Date.now();
+  save();renderNotes();
+  scheduleGistUpload();
 }
 function renderNotes(){
   const c=document.getElementById('notesContent');
@@ -1444,8 +1437,6 @@ function renderNotes(){
 
   // ===== Tag filter bar with counts =====
   const allTags=[...new Set(state.notes.flatMap(n=>n.tags))];
-  // 清理已不存在的置顶标签（对应速记已删/标签已改）
-  state.pinnedNoteTags=(state.pinnedNoteTags||[]).filter(tag=>allTags.includes(tag));
   let filtered=state.notes;
 
   // Apply search filter first
@@ -1464,17 +1455,11 @@ function renderNotes(){
 
   html+=`<div class="notes-tag-filter">
     <span class="notes-tag-pill ${!state.noteTagFilter?'active':''}" onclick="filterNoteTag(null)">全部<span class="notes-tag-count">${totalFiltered}</span></span>`+
-    allTags.map(tag=>{
-      const isPinned=state.pinnedNoteTags.includes(tag);
-      return `<span class="notes-tag-pill ${state.noteTagFilter===tag?'active':''}" onclick="filterNoteTag('${esc(tag)}')">${esc(tag)}<span class="notes-tag-count">${tagCounts[tag]||0}</span><span class="notes-pin-btn ${isPinned?'pinned':''}" onclick="event.stopPropagation();togglePinNoteTag('${esc(tag)}')" title="${isPinned?'取消置顶':'置顶此标签'}">${IC.pin}</span></span>`;
-    }).join('')+`</div>`;
+    allTags.map(tag=>`<span class="notes-tag-pill ${state.noteTagFilter===tag?'active':''}" onclick="filterNoteTag('${esc(tag)}')">${esc(tag)}<span class="notes-tag-count">${tagCounts[tag]||0}</span></span>`).join('')+`</div>`;
 
-  // ===== Pinned section: 置顶标签对应的速记置顶展示 =====
-  let pinnedNotes=[];
-  if(state.pinnedNoteTags.length){
-    pinnedNotes=filtered.filter(n=>n.tags.some(t=>state.pinnedNoteTags.includes(t)));
-    pinnedNotes.sort((a,b)=>b.createdAt-a.createdAt);
-  }
+  // ===== Pinned section: 已置顶的速记展示在顶部板块 =====
+  let pinnedNotes=filtered.filter(n=>n.pinned);
+  pinnedNotes.sort((a,b)=>b.createdAt-a.createdAt);
   const pinnedIds=new Set(pinnedNotes.map(n=>n.id));
 
   // Apply tag filter to regular list (pinned excluded)
@@ -1486,10 +1471,7 @@ function renderNotes(){
   // ===== Pinned section markup =====
   if(pinnedNotes.length){
     html+=`<div class="notes-pinned-section">
-      <div class="notes-pinned-header">${IC.pin} 置顶<span class="notes-pinned-hint">点击标签可取消置顶</span></div>
-      <div class="notes-pinned-tags">`+
-      state.pinnedNoteTags.map(tag=>`<span class="notes-tag-pill active" onclick="togglePinNoteTag('${esc(tag)}')" title="取消置顶">${esc(tag)}<span class="notes-pin-btn pinned" onclick="event.stopPropagation();togglePinNoteTag('${esc(tag)}')">${IC.pin}</span></span>`).join('')+
-      `</div>
+      <div class="notes-pinned-header">${IC.pin} 置顶<span class="notes-pinned-hint">点击速记左上角图钉可取消置顶</span></div>
       <div class="notes-grid">`;
     pinnedNotes.forEach(n=>{ html+=noteCardHtml(n,true); });
     html+=`</div></div>`;
