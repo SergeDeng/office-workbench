@@ -931,6 +931,10 @@ function daysOverdue(s){const t=todayStr();if(s>=t)return 0;const d1=new Date(s)
 function taskStart(t){return t.startDate||''}
 // 是否已进入「今日待办」：未完成的任务，开始日期 <= 今天即视为已开始（开始日期为空则视为已开始）
 function isTodoToday(t){if(t.done)return false;const tdy=todayStr();const sd=taskStart(t);return !sd||sd<=tdy}
+// 任务是否被「卡住的项目」阻塞：关联项目存在且该项目被标记为 blocked
+function isBlockedTodo(t){if(!t.projectId)return false;const p=state.projects.find(x=>x.id===t.projectId);return !!(p&&p.blocked)}
+// 是否应出现在「今日待办」（今日焦点 / 今天待办-今天）：排除卡住项目关联的任务
+function isTodoTodayActive(t){return isTodoToday(t)&&!isBlockedTodo(t)}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function getProjectName(pid){const p=state.projects.find(x=>x.id===pid);return p?p.name:''}
 // Urgency background tint: overdue/P0 red, P1 orange, P2 blue, P3 gray
@@ -966,7 +970,7 @@ function sortTodosUnified(arr, nonOverdueBy){
 function renderSidebar(){
   const nav=document.getElementById('sidebarNav');
   const items=[
-    {id:'focus',label:'今日焦点',icon:IC.focus,count:state.todos.filter(t=>isTodoToday(t)).length},
+    {id:'focus',label:'今日焦点',icon:IC.focus,count:state.todos.filter(t=>isTodoTodayActive(t)).length},
     {id:'todos',label:'今天待办',icon:IC.todo,count:state.todos.filter(t=>!t.done).length},
     {id:'notes',label:'灵感速记',icon:IC.note,count:state.notes.length},
     {id:'projects',label:'项目跟进',icon:IC.project,count:state.projects.length},
@@ -1063,7 +1067,8 @@ function renderFocus(){
   // Compute stats
   const allTodos=state.todos.filter(t=>!t.done);
   const overdueTodos=allTodos.filter(t=>t.deadline&&daysOverdue(t.deadline)>0);
-  const todayTodos=allTodos.filter(t=>isTodoToday(t));
+  // 今日待办：排除「卡住项目」关联的任务（项目卡住 → 任务也推不动，不占今日焦点）
+  const todayTodos=allTodos.filter(t=>isTodoTodayActive(t));
   const stuckProjects=state.projects.filter(p=>p.blocked);
   const completedToday=state.todos.filter(t=>t.done&&t.completedAt&&t.completedAt>=new Date().setHours(0,0,0,0)).length;
   const activeProjects=state.projects.filter(p=>!p.blocked).length;
@@ -1252,7 +1257,8 @@ function renderTodos(){
   }
 
   // ===== Filter tab counts =====
-  const todayTodos=state.todos.filter(t=>isTodoToday(t));
+  // 今天：排除「卡住项目」关联的任务
+  const todayTodos=state.todos.filter(t=>isTodoTodayActive(t));
   const overdueTodos=state.todos.filter(t=>!t.done&&t.deadline&&daysOverdue(t.deadline)>0);
   const upcomingTodos=state.todos.filter(t=>!t.done&&taskStart(t)&&taskStart(t)>today);
   const activeTodos=state.todos.filter(t=>!t.done);
@@ -1283,7 +1289,7 @@ function renderTodos(){
   // ===== Filter logic =====
   let filtered=[];
   switch(state.todoFilter){
-    case 'today': filtered=state.todos.filter(t=>isTodoToday(t));break;
+    case 'today': filtered=state.todos.filter(t=>isTodoTodayActive(t));break;
     case 'overdue': filtered=state.todos.filter(t=>!t.done&&t.deadline&&daysOverdue(t.deadline)>0);break;
     case 'upcoming': filtered=state.todos.filter(t=>!t.done&&taskStart(t)&&taskStart(t)>today);break;
     case 'all': filtered=state.todos.filter(t=>!t.done);break;
