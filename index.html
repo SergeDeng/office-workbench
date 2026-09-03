@@ -190,6 +190,19 @@ a{color:var(--primary);text-decoration:none}
 .todo-tag-row .overdue-tag{font-size:11px;padding:2px 8px;border-radius:10px;white-space:nowrap;background:#fee2e2;color:#dc2626;font-weight:600}
 .todo-tag-row .upcoming-tag{font-size:11px;padding:2px 8px;border-radius:10px;white-space:nowrap;background:#e0e7ff;color:#4338ca;font-weight:600}
 .todo-tag-row .deferred-tag-pill{font-size:11px;padding:2px 8px;border-radius:10px;white-space:nowrap;background:#fef3c7;color:#92400e;font-weight:500}
+/* 任务状态标签：未开启 / 进行中 / 卡住 / 已完成 / 已撤销 */
+.state-tag{font-size:11px;padding:2px 8px;border-radius:10px;white-space:nowrap;font-weight:600;display:inline-flex;align-items:center;gap:3px;line-height:1.4}
+.state-tag.st-notstarted{background:#e0e7ff;color:#4338ca}
+.state-tag.st-ongoing{background:#ccfbf1;color:#0f766e}
+.state-tag.st-blocked{background:#fff7ed;color:#ea580c}
+.state-tag.st-done{background:#ecfdf5;color:#166534}
+.state-tag.st-cancelled{background:#f1f5f9;color:#64748b}
+.state-tag.st-blocked::before{content:'';width:6px;height:6px;border-radius:50%;background:#ea580c;display:inline-block}
+.state-tag.st-cancelled::before{content:'';width:6px;height:6px;border-radius:50%;background:#94a3b8;display:inline-block}
+.todo-item.state-cancelled .todo-title,.todo-item.state-done .todo-title{text-decoration:line-through;color:var(--text-light)}
+.todo-item.state-cancelled{background:#fbfcfd}
+.proj-todo-title.cancelled,.proj-todo-title.done{text-decoration:line-through;color:var(--text-light)}
+.proj-todo-item .state-tag{font-size:10px;padding:1px 6px;border-radius:8px}
 .todo-note-row{font-size:11px;color:var(--text-light);margin-top:4px;display:flex;align-items:center;gap:4px}
 .todo-note-row .note-sep{color:var(--border)}
 .todo-actions-row{display:flex;gap:4px;flex-shrink:0;align-items:flex-start;padding-top:2px}
@@ -297,6 +310,8 @@ a{color:var(--primary);text-decoration:none}
 .project-card.active-proj{border-left-color:var(--success)}
 .project-card.blocked-proj{border-left-color:#f97316}
 .project-card.done-proj{border-left-color:#94a3b8}
+.project-card.cancelled-proj{border-left-color:#cbd5e1;opacity:.78}
+.project-card.cancelled-proj .project-card-name{text-decoration:line-through;color:var(--text-light)}
 .project-card-inner{padding:16px}
 .project-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .project-card-name{font-size:16px;font-weight:600;color:var(--text)}
@@ -305,6 +320,7 @@ a{color:var(--primary);text-decoration:none}
 .project-status-pill.status-active{background:#ecfdf5;color:#166534}
 .project-status-pill.status-blocked{background:#fff7ed;color:#92400e}
 .project-status-pill.status-done{background:#f1f5f9;color:#64748b}
+.project-status-pill.status-cancelled{background:#f1f5f9;color:#94a3b8}
 .proj-action-btn{cursor:pointer;background:none;border:none;padding:5px;border-radius:4px;color:var(--text-light);transition:all .15s;display:flex;align-items:center;justify-content:center}
 .proj-action-btn:hover{color:var(--primary);background:var(--primary-bg)}
 .proj-action-btn.danger:hover{color:var(--danger);background:var(--danger-bg)}
@@ -359,6 +375,7 @@ a{color:var(--primary);text-decoration:none}
 .project-edit-dialog{background:var(--card);border-radius:var(--radius);padding:24px;width:90%;max-width:480px;box-shadow:var(--shadow-lg)}
 .project-edit-title{font-size:17px;font-weight:700;color:var(--text);margin-bottom:16px}
 .project-edit-field{margin-bottom:14px}
+.project-edit-hint{font-size:11px;color:var(--text-light);line-height:1.5;margin:-6px 0 14px;padding:6px 8px;background:var(--bg);border-radius:6px}
 .project-edit-field label{display:block;font-size:12px;color:var(--text-muted);font-weight:500;margin-bottom:4px}
 .project-edit-field input,.project-edit-field select{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;color:var(--text);background:var(--card);transition:border-color .15s;box-sizing:border-box}
 .project-edit-field input:focus,.project-edit-field select:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(13,148,136,.1)}
@@ -676,6 +693,7 @@ const IC = {
   edit:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
   palette:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>',
   pin:'<svg width="16" height="16" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><circle cx="13" cy="5" r="4.2" fill="#ef4444"/><polygon points="9.5,8.5 3.5,17.5 6,16 10,11" fill="#94a3b8"/></svg>',
+  ban:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>',
 };
 
 // ===== Storage =====
@@ -770,9 +788,9 @@ function mergeAll(L, C, B){
   const conflicts=[];
   const merged={todos:[],notes:[],projects:[],deleted:[]};
   const spec=[
-    {key:'todos', type:'todo', fields:['title','priority','deadline','startDate','done','projectId','completedAt','deferredCount','demo']},
+    {key:'todos', type:'todo', fields:['title','priority','deadline','startDate','done','projectId','completedAt','deferredCount','status','autoByProject','demo']},
     {key:'notes', type:'note', fields:['content','tags','pinned']},
-    {key:'projects', type:'project', fields:['name','currentStep','nextStep','blocked','blockedNote']},
+    {key:'projects', type:'project', fields:['name','currentStep','nextStep','blocked','blockedNote','cancelled']},
   ];
   spec.forEach(s=>{
     merged[s.key]=mergeCollection(L[s.key], C[s.key], B?B[s.key]:null, s.fields, s.type, conflicts);
@@ -913,6 +931,8 @@ function load(){
     state.projects.forEach(p=>{if(!p.updatedAt)p.updatedAt=p.createdAt||now;});
     state.deleted=JSON.parse(localStorage.getItem(SK.deleted)||'[]');
     if(!Array.isArray(state.deleted))state.deleted=[];
+    // 项目「卡住/已撤销」状态传染到关联任务，保证两端同步后状态一致
+    if(syncTodosFromProjects())saveLocal();
   }catch(e){state.todos=[];state.notes=[];state.projects=[]}
 }
 
@@ -931,10 +951,59 @@ function daysOverdue(s){const t=todayStr();if(s>=t)return 0;const d1=new Date(s)
 function taskStart(t){return t.startDate||''}
 // 是否已进入「今日待办」：未完成的任务，开始日期 <= 今天即视为已开始（开始日期为空则视为已开始）
 function isTodoToday(t){if(t.done)return false;const tdy=todayStr();const sd=taskStart(t);return !sd||sd<=tdy}
-// 任务是否被「卡住的项目」阻塞：关联项目存在且该项目被标记为 blocked
-function isBlockedTodo(t){if(!t.projectId)return false;const p=state.projects.find(x=>x.id===t.projectId);return !!(p&&p.blocked)}
-// 是否应出现在「今日待办」（今日焦点 / 今天待办-今天）：排除卡住项目关联的任务
-function isTodoTodayActive(t){return isTodoToday(t)&&!isBlockedTodo(t)}
+// ===== 任务状态 =====
+// 五种状态：notstarted 未开启 / ongoing 进行中 / blocked 卡住 / done 已完成 / cancelled 已撤销
+// 判定优先级：已撤销 > 已完成 > 卡住 > 未开启（开始日期未到）> 进行中
+const TODO_STATUS={
+  notstarted:{label:'未开启',cls:'st-notstarted'},
+  ongoing:{label:'进行中',cls:'st-ongoing'},
+  blocked:{label:'卡住',cls:'st-blocked'},
+  done:{label:'已完成',cls:'st-done'},
+  cancelled:{label:'已撤销',cls:'st-cancelled'}
+};
+function todoStatus(t){
+  if(!t)return'ongoing';
+  if(t.status==='cancelled')return'cancelled';
+  if(t.done)return'done';
+  if(t.status==='blocked')return'blocked';
+  const sd=taskStart(t);
+  if(sd&&sd>todayStr())return'notstarted';
+  return'ongoing';
+}
+function todoStateTag(s){const m=TODO_STATUS[s]||TODO_STATUS.ongoing;return `<span class="state-tag ${m.cls}">${m.label}</span>`}
+// 是否应出现在「今日待办」（今日焦点 / 今天待办-今天）：仅「进行中」的任务
+function isTodoTodayActive(t){return todoStatus(t)==='ongoing'}
+// 是否计入活跃统计（排除 已完成 / 已撤销）
+function isOpenTodo(t){const s=todoStatus(t);return s!=='done'&&s!=='cancelled'}
+// 项目状态传染：项目「卡住」→ 关联未完成任务自动卡住；项目「已撤销」→ 关联未完成任务自动撤销
+// 项目恢复正常时，仅清除「由项目自动置位」的状态，用户手动设置的卡住/撤销保持不动
+function syncTodosFromProjects(){
+  let changed=false;
+  state.todos.forEach(t=>{
+    if(!t.projectId)return;
+    if(t.done)return;                                   // 已完成不受项目影响
+    if(t.status==='cancelled'&&!t.autoByProject)return;  // 手动撤销的保持撤销
+    const p=state.projects.find(x=>x.id===t.projectId);
+    if(!p)return;
+    if(p.cancelled){
+      if(t.status!=='cancelled'){t.status='cancelled';t.autoByProject=true;t.updatedAt=Date.now();changed=true;}
+    }else if(p.blocked){
+      if(t.status!=='blocked'){t.status='blocked';t.autoByProject=true;t.updatedAt=Date.now();changed=true;}
+    }else{
+      if(t.autoByProject&&(t.status==='blocked'||t.status==='cancelled')){t.status='';t.autoByProject=false;t.updatedAt=Date.now();changed=true;}
+    }
+  });
+  return changed;
+}
+// 项目状态：cancelled 已撤销 / blocked 卡住了 / done 已完成 / active 进行中
+function projectStatus(p){
+  if(p.cancelled)return'cancelled';
+  if(p.blocked)return'blocked';
+  const linked=state.todos.filter(t=>t.projectId===p.id);
+  if(linked.length>0&&linked.every(t=>t.done))return'done';
+  return'active';
+}
+const PROJECT_STATUS_LABEL={active:'进行中',blocked:'卡住了',done:'已完成',cancelled:'已撤销'};
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function getProjectName(pid){const p=state.projects.find(x=>x.id===pid);return p?p.name:''}
 // Urgency background tint: overdue/P0 red, P1 orange, P2 blue, P3 gray
@@ -971,7 +1040,7 @@ function renderSidebar(){
   const nav=document.getElementById('sidebarNav');
   const items=[
     {id:'focus',label:'今日焦点',icon:IC.focus,count:state.todos.filter(t=>isTodoTodayActive(t)).length},
-    {id:'todos',label:'今天待办',icon:IC.todo,count:state.todos.filter(t=>!t.done).length},
+    {id:'todos',label:'今天待办',icon:IC.todo,count:state.todos.filter(t=>isOpenTodo(t)).length},
     {id:'notes',label:'灵感速记',icon:IC.note,count:state.notes.length},
     {id:'projects',label:'项目跟进',icon:IC.project,count:state.projects.length},
     {id:'review',label:'每周复盘',icon:IC.review,count:0},
@@ -1004,8 +1073,9 @@ function renderSidebar(){
 function renderTopAlert(){
   const grid=document.getElementById('topAlertGrid');
   const priorityOrder={P0:0,P1:1,P2:2,P3:3};
-  const overdue=state.todos.filter(t=>!t.done&&t.deadline&&daysOverdue(t.deadline)>0);
-  const stuck=state.projects.filter(p=>p.blocked);
+  // 逾期限「进行中/卡住」的任务：已撤销/已完成/未开启 不再提醒
+  const overdue=state.todos.filter(t=>isOpenTodo(t)&&t.deadline&&daysOverdue(t.deadline)>0);
+  const stuck=state.projects.filter(p=>p.blocked&&!p.cancelled);
 
   if(overdue.length===0&&stuck.length===0){
     grid.innerHTML=`<div class="alert-card" style="grid-column:1/-1">
@@ -1065,13 +1135,14 @@ function renderFocus(){
   const dateStr=`${now.getMonth()+1}月${now.getDate()}日 · 周${weekDays[now.getDay()]}`;
 
   // Compute stats
-  const allTodos=state.todos.filter(t=>!t.done);
-  const overdueTodos=allTodos.filter(t=>t.deadline&&daysOverdue(t.deadline)>0);
-  // 今日待办：排除「卡住项目」关联的任务（项目卡住 → 任务也推不动，不占今日焦点）
-  const todayTodos=allTodos.filter(t=>isTodoTodayActive(t));
+  // 逾期统计：排除 已撤销 / 卡住 的任务（撤销的不算数，卡住的推不动、不占今日焦点）
+  const overdueTodos=state.todos.filter(t=>isOpenTodo(t)&&todoStatus(t)!=='blocked'&&t.deadline&&daysOverdue(t.deadline)>0);
+  // 今日待办：仅「进行中」的任务（未开启 / 卡住 / 已撤销 / 已完成 均不进入）
+  const todayTodos=state.todos.filter(t=>isTodoTodayActive(t));
   const stuckProjects=state.projects.filter(p=>p.blocked);
+  const cancelledProjects=state.projects.filter(p=>p.cancelled);
   const completedToday=state.todos.filter(t=>t.done&&t.completedAt&&t.completedAt>=new Date().setHours(0,0,0,0)).length;
-  const activeProjects=state.projects.filter(p=>!p.blocked).length;
+  const activeProjects=state.projects.filter(p=>!p.blocked&&!p.cancelled).length;
   const pendingCount=todayTodos.length;
 
   // Sort today's todos: overdue first, then by priority
@@ -1099,6 +1170,7 @@ function renderFocus(){
     if(stuckProjects.length>0)html+=` 和 <span class="num-warn">${stuckProjects.length}</span> 个卡住的项目`;
     html+=`要先处理，`;
   }
+  html+=`<span style="font-size:12px;color:var(--text-light)">（卡住 ${state.todos.filter(t=>todoStatus(t)==='blocked').length} 件 · 已撤销 ${state.todos.filter(t=>todoStatus(t)==='cancelled').length} 件 · 撤销项目 ${cancelledProjects.length} 个已移出清单）</span>`;
   html+=`剩下 <span class="num-ok">${pendingCount}</span> 件按优先级往下推。</div>
   </div>`;
 
@@ -1210,6 +1282,8 @@ function renderFocus(){
         html+=`<span class="${dd>0?'deadline-tag overdue':'deadline-tag'}">${dd>0?'逾期 '+dd+' 天':fmtDate(t.deadline)}</span>`;
       }
       if(projName)html+=`<span class="project-tag-outline"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> ${projName}</span>`;
+      // 状态标签：仅非「进行中」时展示（进行中为常态，不占版面）
+      if(todoStatus(t)!=='ongoing')html+=todoStateTag(todoStatus(t));
       if(deferInfo)html+=`<span class="deferred-tag-pill">${deferInfo}</span>`;
       html+=`</div>`;
       if(statusNote||isOverdue){
@@ -1235,7 +1309,7 @@ function toggleTodoFocus(id){
   if(!t)return;
   t.done=!t.done;
   t.updatedAt=Date.now();
-  if(t.done)t.completedAt=Date.now();
+  if(t.done){t.completedAt=Date.now();if(t.status==='cancelled'){t.status='';t.autoByProject=false;}}
   save();renderAll();scheduleGistUpload();
 }
 
@@ -1247,7 +1321,10 @@ function renderTodos(){
 
   // ===== Add button =====
   let html=`<div class="form-card" style="display:flex;align-items:center;justify-content:space-between">
-    <span style="font-size:13px;color:var(--text-muted)">共 ${state.todos.filter(t=>!t.done).length} 条待办</span>
+    <span style="font-size:13px;color:var(--text-muted)">共 ${state.todos.filter(t=>isOpenTodo(t)).length} 条待办
+      <span style="margin-left:6px;color:#ea580c">· 卡住 ${state.todos.filter(t=>todoStatus(t)==='blocked').length}</span>
+      <span style="margin-left:6px;color:var(--text-light)">· 已撤销 ${state.todos.filter(t=>todoStatus(t)==='cancelled').length}</span>
+    </span>
     <button class="btn btn-primary" onclick="openTodoModal()">${IC.plus}添加任务</button>
   </div>`;
 
@@ -1257,17 +1334,19 @@ function renderTodos(){
   }
 
   // ===== Filter tab counts =====
-  // 今天：排除「卡住项目」关联的任务
+  // 今天：仅「进行中」的任务（未开启 / 卡住 / 已撤销 / 已完成 均不进入）
   const todayTodos=state.todos.filter(t=>isTodoTodayActive(t));
-  const overdueTodos=state.todos.filter(t=>!t.done&&t.deadline&&daysOverdue(t.deadline)>0);
-  const upcomingTodos=state.todos.filter(t=>!t.done&&taskStart(t)&&taskStart(t)>today);
-  const activeTodos=state.todos.filter(t=>!t.done);
+  const overdueTodos=state.todos.filter(t=>isOpenTodo(t)&&t.deadline&&daysOverdue(t.deadline)>0);
+  const upcomingTodos=state.todos.filter(t=>isOpenTodo(t)&&taskStart(t)&&taskStart(t)>today);
+  const blockedTodos=state.todos.filter(t=>todoStatus(t)==='blocked');
+  const cancelledTodos=state.todos.filter(t=>todoStatus(t)==='cancelled');
+  const activeTodos=state.todos.filter(t=>isOpenTodo(t));
   const doneTodos=state.todos.filter(t=>t.done);
-  const tabCounts={today:todayTodos.length,overdue:overdueTodos.length,upcoming:upcomingTodos.length,all:activeTodos.length,done:doneTodos.length};
+  const tabCounts={today:todayTodos.length,overdue:overdueTodos.length,upcoming:upcomingTodos.length,blocked:blockedTodos.length,cancelled:cancelledTodos.length,all:activeTodos.length,done:doneTodos.length};
 
-  const tabLabels={today:'今天',overdue:'逾期',upcoming:'即将到来',all:'全部',done:'已完成'};
+  const tabLabels={today:'今天',overdue:'逾期',upcoming:'即将到来',blocked:'卡住',cancelled:'已撤销',all:'全部',done:'已完成'};
   html+=`<div class="todo-filter-tabs">`+
-    ['today','overdue','upcoming','all','done'].map(k=>{
+    ['today','overdue','upcoming','blocked','cancelled','all','done'].map(k=>{
       const isActive=state.todoFilter===k;
       return `<span class="todo-filter-tab ${isActive?'active':''}" onclick="setTodoFilter('${k}')">${tabLabels[k]}${tabCounts[k]>0?`<span class="tab-count"> ${tabCounts[k]}</span>`:''}</span>`;
     }).join('')+`</div>`;
@@ -1290,9 +1369,11 @@ function renderTodos(){
   let filtered=[];
   switch(state.todoFilter){
     case 'today': filtered=state.todos.filter(t=>isTodoTodayActive(t));break;
-    case 'overdue': filtered=state.todos.filter(t=>!t.done&&t.deadline&&daysOverdue(t.deadline)>0);break;
-    case 'upcoming': filtered=state.todos.filter(t=>!t.done&&taskStart(t)&&taskStart(t)>today);break;
-    case 'all': filtered=state.todos.filter(t=>!t.done);break;
+    case 'overdue': filtered=state.todos.filter(t=>isOpenTodo(t)&&t.deadline&&daysOverdue(t.deadline)>0);break;
+    case 'upcoming': filtered=state.todos.filter(t=>isOpenTodo(t)&&taskStart(t)&&taskStart(t)>today);break;
+    case 'blocked': filtered=state.todos.filter(t=>todoStatus(t)==='blocked');break;
+    case 'cancelled': filtered=state.todos.filter(t=>todoStatus(t)==='cancelled');break;
+    case 'all': filtered=state.todos.filter(t=>isOpenTodo(t));break;
     case 'done': filtered=state.todos.filter(t=>t.done);break;
   }
   if(state.projectFilter!==''){
@@ -1303,6 +1384,9 @@ function renderTodos(){
   // Unified sort: 逾期置顶 → 逾期天数降序 → 同天数按优先级 → 非逾期先按截止日期升序(同日按优先级)
   if(state.todoFilter==='done'){
     filtered=[...filtered].sort((a,b)=>(b.completedAt||0)-(a.completedAt||0));
+  }else if(state.todoFilter==='cancelled'){
+    // 已撤销：按最近更新时间倒序
+    filtered=[...filtered].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
   }else if(state.todoFilter==='upcoming'){
     // 即将到来：按开始日期升序（开始日期为空排最后），同日按优先级
     const po={P0:0,P1:1,P2:2,P3:3};
@@ -1318,8 +1402,9 @@ function renderTodos(){
   // ===== Render list =====
   const renderItem=(t)=>{
     let h='';
-    const od=!t.done&&t.deadline&&daysOverdue(t.deadline)>0;
-      const up=!t.done&&taskStart(t)&&taskStart(t)>today;
+    const st=todoStatus(t);
+    const od=(st==='ongoing'||st==='blocked')&&t.deadline&&daysOverdue(t.deadline)>0;
+      const up=(st==='notstarted');
       const pn=getProjectName(t.projectId);
       const jcount=(t.journal||[]).length;
       const priColor=PRIORITY_COLORS[t.priority];
@@ -1329,16 +1414,16 @@ function renderTodos(){
       else if(t.deadline&&t.deadline!==today) noteLines.push(fmtDate(t.deadline));
       if(t.deferredCount>0) noteLines.push(`已顺延 ${t.deferredCount} 次`);
 
-      h+=`<div class="todo-item ${od?'overdue':''} ${up?'upcoming':''} ${t.done?'done':''}" id="todoItem-${t.id}">
+      h+=`<div class="todo-item ${od?'overdue':''} ${up?'upcoming':''} ${t.done?'done':''} state-${st}" id="todoItem-${t.id}">
         <div class="todo-priority-bar" style="background:${priColor}"></div>
         <div class="todo-item-main">
           <div class="todo-checkbox ${t.done?'checked':''}" onclick="toggleTodo('${t.id}')">${IC.check}</div>
           <div class="todo-body">
             <div class="todo-title">${esc(t.title)}</div>
             <div class="todo-tag-row">
+              ${todoStateTag(st)}
               <span class="priority-badge priority-${t.priority}">${PRIORITY_LABELS[t.priority]}</span>
               ${od?`<span class="overdue-tag">逾期 ${daysOverdue(t.deadline)} 天</span>`:''}
-              ${up?`<span class="upcoming-tag">未开始</span>`:''}
               ${pn?`<span class="project-tag-outline">${esc(pn)}</span>`:''}
               ${t.deferredCount>0?`<span class="deferred-tag-pill">顺延 ${t.deferredCount} 次</span>`:''}
             </div>
@@ -1359,7 +1444,11 @@ function renderTodos(){
         <div class="todo-actions-row">
           <button class="todo-expand-btn" onclick="toggleJournal('${t.id}')" title="展开进展记录">${IC.arrow}</button>
           <button class="btn btn-sm btn-icon" onclick="editTodo('${t.id}')" title="编辑">${IC.edit}</button>
-          ${!t.done&&od?`<button class="btn btn-sm btn-primary" onclick="deferTodo('${t.id}')">顺延</button>`:''}
+          ${(st==='blocked')?`<button class="btn btn-sm" onclick="setTodoStatus('${t.id}','ongoing')" title="解除卡住">解除卡住</button>`:''}
+          ${(st==='ongoing'||st==='notstarted')?`<button class="btn btn-sm" onclick="setTodoStatus('${t.id}','blocked')" title="标记为卡住">卡住</button>`:''}
+          ${(st!=='done'&&od)?`<button class="btn btn-sm btn-primary" onclick="deferTodo('${t.id}')">顺延</button>`:''}
+          ${(st==='cancelled')?`<button class="btn btn-sm" onclick="setTodoStatus('${t.id}','ongoing')" title="恢复为进行中">恢复</button>`:''}
+          ${(st!=='done'&&st!=='cancelled')?`<button class="btn btn-sm btn-danger" onclick="setTodoStatus('${t.id}','cancelled')" title="撤销该任务">撤销</button>`:''}
           <button class="btn btn-sm btn-icon btn-danger" onclick="deleteTodo('${t.id}')" title="删除">${IC.trash}</button>
         </div>
         <div class="journal-panel" id="journal-${t.id}">
@@ -1505,18 +1594,17 @@ function renderProjects(){
   const today=todayStr();
 
   // Stats summary
-  const active=state.projects.filter(p=>!p.blocked);
-  const blocked=state.projects.filter(p=>p.blocked);
+  const active=state.projects.filter(p=>projectStatus(p)==='active');
+  const blocked=state.projects.filter(p=>p.blocked&&!p.cancelled);
+  const cancelled=state.projects.filter(p=>p.cancelled);
   // Count completed projects: all linked todos are done
-  const completed=state.projects.filter(p=>{
-    const linked=state.todos.filter(t=>t.projectId===p.id);
-    return linked.length>0&&linked.every(t=>t.done);
-  });
-  const pendingTodos=state.todos.filter(t=>!t.done).length;
+  const completed=state.projects.filter(p=>projectStatus(p)==='done');
+  const pendingTodos=state.todos.filter(t=>isOpenTodo(t)).length;
 
   let html=`<div class="project-stats">
     <span><span class="stat-num primary">${active.length}</span>个在跑</span>
     · <span class="stat-num danger">${blocked.length}</span>个卡住</span>
+    · <span class="stat-num" style="color:var(--text-light)">${cancelled.length}</span>个已撤销</span>
     · 已完成 <span class="stat-num success">${completed.length}</span>个</span>
     · 挂了 <span class="stat-num">${pendingTodos}</span>条待办</span>
   </div>`;
@@ -1530,7 +1618,7 @@ function renderProjects(){
     <div class="project-new-fields" id="newProjFields">
       <div class="form-field" style="grid-column:1/-1"><label>项目名</label><input class="input" id="projName" placeholder="例如：首页改版"></div>
       <div class="form-field"><label>状态</label><select class="select" id="projStatus">
-        <option value="active">进行中</option><option value="blocked">卡住了</option><option value="done">已完成</option>
+        <option value="active">进行中</option><option value="blocked">卡住了</option><option value="done">已完成</option><option value="cancelled">已撤销</option>
       </select></div>
       <div class="form-field"><label>&nbsp;</label></div>
       <div class="form-field" style="grid-column:1/-1"><label>现在到哪一步</label><input class="input" id="projCurrent" placeholder="例如：视觉稿第二轮评审中"></div>
@@ -1566,13 +1654,13 @@ function renderProjects(){
     const pct=total>0?Math.round(done/total*100):0;
 
     // Determine status for styling
-    const isDone=total>0&&done===total;
-    const statusClass=p.blocked?'status-blocked':isDone?'status-done':'status-active';
-    const statusText=p.blocked?'卡住了':isDone?'已完成':'进行中';
-    const cardClass=p.blocked?'blocked-proj':isDone?'done-proj':'active-proj';
+    const ps=projectStatus(p);
+    const statusClass='status-'+ps;
+    const statusText=PROJECT_STATUS_LABEL[ps];
+    const cardClass=ps==='blocked'?'blocked-proj':ps==='cancelled'?'cancelled-proj':ps==='done'?'done-proj':'active-proj';
 
-    // Overdue count in linked todos
-    const overdueLinked=linked.filter(t=>!t.done&&t.deadline&&daysOverdue(t.deadline)>0);
+    // Overdue count in linked todos（已撤销的任务不计入逾期）
+    const overdueLinked=linked.filter(t=>isOpenTodo(t)&&t.deadline&&daysOverdue(t.deadline)>0);
 
     html+=`<div class="project-card ${cardClass}" data-name="${esc(p.name)}">
       <div class="project-card-inner">
@@ -1580,6 +1668,7 @@ function renderProjects(){
           <div class="project-card-name">${esc(p.name)}</div>
           <div class="project-card-actions">
             <span class="project-status-pill ${statusClass}">${statusText}</span>
+            <button class="proj-action-btn" onclick="toggleProjectCancelled('${p.id}')" title="${ps==='cancelled'?'恢复项目':'撤销项目（关联未完成任务自动置为已撤销）'}">${IC.ban}</button>
             <button class="proj-action-btn" onclick="openProjectEditModal('${p.id}')" title="编辑项目">${IC.edit}</button>
             <button class="proj-action-btn danger" onclick="confirmDeleteProject('${p.id}')" title="删除项目">${IC.trash}</button>
           </div>
@@ -1593,9 +1682,13 @@ function renderProjects(){
           <span class="proj-field-label">下一步</span>
           <span class="proj-field-value">${p.nextStep?esc(p.nextStep):'<span style="color:var(--text-light)">—</span>'}</span>
         </div>
-        ${p.blocked?`<div class="proj-field-row">
+        ${p.blocked&&!p.cancelled?`<div class="proj-field-row">
           <span class="proj-field-label">卡在</span>
           <span class="proj-field-value blocked-text">${esc(p.blockedNote||'未说明')}</span>
+        </div>`:''}
+        ${p.cancelled?`<div class="proj-field-row">
+          <span class="proj-field-label">撤销原因</span>
+          <span class="proj-field-value" style="color:var(--text-light)">${esc(p.blockedNote||'未说明')}</span>
         </div>`:''}
 
         ${total>0?`<div class="proj-linked-section">
@@ -1603,18 +1696,22 @@ function renderProjects(){
             <span class="proj-linked-label">关联待办 <span class="proj-linked-count">${done}/${total}</span>${overdueLinked.length>0?`<span class="proj-overdue-tag">· 逾期 ${overdueLinked.length}</span>`:''}</span>
             <button class="proj-add-task-btn" onclick="quickAddTodoToProject('${p.id}')">${IC.plus}加一条</button>
           </div>
-          ${!isDone?`<div class="progress-bar" style="margin-bottom:8px;height:6px"><div class="progress-fill" style="width:${pct}%"></div></div>`:''}
+          ${ps!=='done'?`<div class="progress-bar" style="margin-bottom:8px;height:6px"><div class="progress-fill" style="width:${pct}%"></div></div>`:''}
           <div class="proj-todo-list">
             ${linked.map(t=>{
-              const od=!t.done&&t.deadline&&daysOverdue(t.deadline)>0;
+              const ts=todoStatus(t);
+              const od=(ts==='ongoing'||ts==='blocked')&&t.deadline&&daysOverdue(t.deadline)>0;
               return `<div class="proj-todo-item">
                 <div class="proj-todo-check ${t.done?'checked':''}" onclick="toggleTodo('${t.id}')">${IC.check}</div>
-                <span class="proj-todo-title${t.done?'':''}" style="${t.done?'text-decoration:line-through;color:var(--text-light)':''}">${esc(t.title)}</span>
-                ${t.deadline&&!t.done?`<span class="proj-todo-deadline ${od?'overdue':''}">${od?'逾期 '+daysOverdue(t.deadline)+' 天':fmtDate(t.deadline)}</span>`:''}
+                <span class="proj-todo-title ${ts==='done'||ts==='cancelled'?'done':''}" ${ts==='done'?'style="text-decoration:line-through;color:var(--text-light)"':''}>${esc(t.title)}</span>
+                ${todoStateTag(ts)}
+                ${t.deadline&&ts!=='done'&&ts!=='cancelled'?`<span class="proj-todo-deadline ${od?'overdue':''}">${od?'逾期 '+daysOverdue(t.deadline)+' 天':fmtDate(t.deadline)}</span>`:''}
               </div>`;
             }).join('')}
           </div>
-          ${isDone?`<div class="proj-all-done-msg">${IC.ok}关联的 ${total} 件待办都做完了</div>`:''}
+          ${ps==='done'?`<div class="proj-all-done-msg">${IC.ok}关联的 ${total} 件待办都做完了</div>`:''}
+          ${ps==='cancelled'?`<div class="proj-all-done-msg" style="color:var(--text-light)">该项目已撤销，${total} 件未完成的关联任务已自动标记为「已撤销」</div>`:''}
+          ${ps==='blocked'?`<div class="proj-all-done-msg" style="color:#ea580c">项目卡住中，未完成的关联任务已自动标记为「卡住」</div>`:''}
         </div>`:''}
 
         <div class="proj-update-time">更新 ${fmtRelative(p.updatedAt||p.createdAt)}</div>
@@ -1661,8 +1758,9 @@ function addProjectNew(){
   const current=document.getElementById('projCurrent').value.trim();
   const next=document.getElementById('projNext').value.trim();
   const blockedNote=document.getElementById('projBlockedNote').value.trim();
-  const proj={id:genId(),name,currentStep:current,nextStep:next,blocked:(status==='blocked'),blockedNote:blockedNote,createdAt:Date.now(),updatedAt:Date.now()};
+  const proj={id:genId(),name,currentStep:current,nextStep:next,blocked:(status==='blocked'),blockedNote:blockedNote,cancelled:(status==='cancelled'),createdAt:Date.now(),updatedAt:Date.now()};
   state.projects.push(proj);
+  syncTodosFromProjects(); // 新项目若已撤销/卡住，同步关联任务
   save();renderAll();
   scheduleGistUpload();
   // Reset form
@@ -1690,13 +1788,15 @@ function openProjectEditModal(id){
       <div class="project-edit-title">编辑项目</div>
       <div class="project-edit-field"><label>项目名</label><input id="editProjName" value="${esc(p.name)}" placeholder="输入项目名称"></div>
       <div class="project-edit-field"><label>状态</label><select id="editProjStatus">
-        <option value="active" ${!p.blocked?'selected':''}>进行中</option>
-        <option value="blocked" ${p.blocked?'selected':''}>卡住了</option>
+        <option value="active" ${(!p.blocked&&!p.cancelled)?'selected':''}>进行中</option>
+        <option value="blocked" ${(p.blocked&&!p.cancelled)?'selected':''}>卡住了</option>
         <option value="done">已完成</option>
+        <option value="cancelled" ${p.cancelled?'selected':''}>已撤销</option>
       </select></div>
       <div class="project-edit-field"><label>现在到哪一步</label><input id="editProjCurrent" value="${esc(p.currentStep||'')}" placeholder="当前进展..."></div>
       <div class="project-edit-field"><label>下一步做什么</label><input id="editProjNext" value="${esc(p.nextStep||'')}" placeholder="下一步计划..."></div>
-      <div class="project-edit-field"><label>卡在</label><input id="editProjBlockedNote" value="${esc(p.blockedNote||'')}" placeholder="说明卡点原因（没有就留空）"></div>
+      <div class="project-edit-field"><label>卡在 / 撤销原因</label><input id="editProjBlockedNote" value="${esc(p.blockedNote||'')}" placeholder="说明卡点或撤销原因（没有就留空）"></div>
+      <div class="project-edit-hint">设为「卡住了」→ 关联未完成的任务自动置为「卡住」；设为「已撤销」→ 自动置为「已撤销」；改回「进行中」会自动解除。</div>
       <div class="project-edit-actions">
         <button class="btn btn-sm" onclick="closeProjectEditModal()">取消</button>
         <button class="btn btn-sm btn-primary" onclick="saveProjectEdit()">${IC.edit}保存</button>
@@ -1720,7 +1820,9 @@ function saveProjectEdit(){
   p.blockedNote=document.getElementById('editProjBlockedNote').value.trim();
   const status=document.getElementById('editProjStatus').value;
   p.blocked=(status==='blocked');
+  p.cancelled=(status==='cancelled');
   p.updatedAt=Date.now();
+  syncTodosFromProjects(); // 项目状态变更 → 同步关联任务状态
   save();renderAll();scheduleGistUpload();
   closeProjectEditModal();
 }
@@ -1759,9 +1861,10 @@ function renderReview(){
   const c=document.getElementById('reviewContent');
   const wr=getWeekRange();
   const completedThisWeek=state.todos.filter(t=>t.done&&t.completedAt&&isThisWeek(new Date(t.completedAt).toISOString().split('T')[0]));
-  const activeProjects=state.projects.filter(p=>!p.blocked);
-  const stuckProjects=state.projects.filter(p=>p.blocked);
-  const deferredTodos=state.todos.filter(t=>!t.done&&t.deferredCount>0);
+  const activeProjects=state.projects.filter(p=>projectStatus(p)==='active');
+  const stuckProjects=state.projects.filter(p=>p.blocked&&!p.cancelled);
+  const cancelledProjects=state.projects.filter(p=>p.cancelled);
+  const deferredTodos=state.todos.filter(t=>isOpenTodo(t)&&t.deferredCount>0);
   
   // Stat cards
   let html=`<div class="review-toolbar">
@@ -1770,9 +1873,10 @@ function renderReview(){
   </div>
   <div class="stat-grid">
     <div class="stat-card"><div class="stat-value">${completedThisWeek.length}</div><div class="stat-label">本周完成</div></div>
-    <div class="stat-card"><div class="stat-value">${state.todos.filter(t=>!t.done).length}</div><div class="stat-label">待办剩余</div></div>
+    <div class="stat-card"><div class="stat-value">${state.todos.filter(t=>isOpenTodo(t)).length}</div><div class="stat-label">待办剩余</div></div>
     <div class="stat-card"><div class="stat-value">${activeProjects.length}</div><div class="stat-label">进行中项目</div></div>
     <div class="stat-card"><div class="stat-value" style="color:var(--danger)">${stuckProjects.length}</div><div class="stat-label">卡住项目</div></div>
+    <div class="stat-card"><div class="stat-value" style="color:var(--text-light)">${cancelledProjects.length}</div><div class="stat-label">已撤销项目</div></div>
   </div>`;
   
   // Priority pie chart
@@ -1873,7 +1977,8 @@ function generateWeeklyReport(){
   const progressCount=progressMap.size;
   const dueCount=dueMap.size;
   const doneCount=allTasks.filter(t=>t.done).length;
-  const overdueNow=allTasks.filter(t=>!t.done&&t.deadline&&daysOverdue(t.deadline)>0).length;
+  const cancelledCount=allTasks.filter(t=>todoStatus(t)==='cancelled').length;
+  const overdueNow=allTasks.filter(t=>isOpenTodo(t)&&t.deadline&&daysOverdue(t.deadline)>0).length;
 
   // 按项目分组
   const groups=new Map();
@@ -1900,6 +2005,7 @@ function generateWeeklyReport(){
   md+=`- 期间有进展更新的任务：${progressCount} 个\n`;
   md+=`- 计划在该区间完成（含逾期）的任务：${dueCount} 个（已完成 ${doneCount} 个 / 未完成 ${allTasks.length-doneCount} 个）\n`;
   if(overdueNow>0) md+=`- 截至今日仍逾期：${overdueNow} 个 ⚠️\n`;
+  if(cancelledCount>0) md+=`- 期间撤销的任务：${cancelledCount} 个\n`;
   md+=`\n`;
 
   md+=`## 二、按项目汇总\n\n`;
@@ -1922,9 +2028,13 @@ function generateWeeklyReport(){
       const pLabel=PRIORITY_LABELS[t.priority]||t.priority;
       const pColor=PRIORITY_COLORS[t.priority]||'#334155';
       let status,statusColor;
-      if(t.done){status='✅ 已完成';statusColor='#166534';}
+      const stt=todoStatus(t);
+      if(stt==='done'){status='✅ 已完成';statusColor='#166534';}
+      else if(stt==='cancelled'){status='已撤销';statusColor='#64748b';}
       else if(t.deadline&&daysOverdue(t.deadline)>0){status=`⚠️ 逾期 ${daysOverdue(t.deadline)} 天`;statusColor='#dc2626';}
-      else{ const sp=t.projectId?state.projects.find(x=>x.id===t.projectId):null; if(sp&&sp.blocked){status='⛔ 卡住';statusColor='#ea580c';} else {status='⬜ 待办';statusColor='#64748b';} }
+      else if(stt==='blocked'){status='⛔ 卡住';statusColor='#ea580c';}
+      else if(stt==='notstarted'){status='未开启';statusColor='#4338ca';}
+      else {status='🔵 进行中';statusColor='#0f766e';}
       const dl=t.deadline?`（截止 ${t.deadline}）`:'（无截止日期）';
       const why=[];
       if(v.progress.length>0)why.push('📝有进展');
@@ -1944,7 +2054,7 @@ function generateWeeklyReport(){
   });
 
   // 三、下周重点（未完成 / 逾期）
-  const pendingSorted=sortTodosUnified(allTasks.filter(t=>!t.done));
+  const pendingSorted=sortTodosUnified(allTasks.filter(t=>isOpenTodo(t)));
   if(pendingSorted.length>0){
     md+=`## 三、下周重点（未完成 / 逾期）\n\n`;
     pendingSorted.forEach(t=>{
@@ -2057,6 +2167,8 @@ function openTodoModal(id, presetProjectId){
   const t=id?state.todos.find(x=>x.id===id):null;
   const presetProj=(presetProjectId!=null)?presetProjectId:(t?t.projectId:null);
   const projOpts=state.projects.map(p=>`<option value="${p.id}"${presetProj===p.id?' selected':''}>${esc(p.name)}</option>`).join('');
+  // 当前状态值：cancelled > done > blocked > auto（未开启/进行中由开始日期自动判定）
+  const stVal=t?(t.status==='cancelled'?'cancelled':t.done?'done':t.status==='blocked'?'blocked':'auto'):'auto';
   const title=t?'编辑任务':'新建任务';
   const overlay=document.createElement('div');
   overlay.className='todo-edit-overlay';
@@ -2074,6 +2186,13 @@ function openTodoModal(id, presetProjectId){
       </select></div>
       <div class="todo-edit-field"><label>开始日期（不填默认今天，到了才开始出现在待办）</label><input type="date" id="editTodoStart" value="${t?t.startDate||'':todayStr()}"></div>
       <div class="todo-edit-field"><label>截止日期</label><input type="date" id="editTodoDeadline" value="${t?t.deadline||'':todayStr()}"></div>
+      <div class="todo-edit-field"><label>状态</label><select id="editTodoStatus">
+        <option value="auto" ${stVal==='auto'?'selected':''}>自动（开始日期未到=未开启，到了=进行中）</option>
+        <option value="ongoing" ${stVal==='ongoing'?'selected':''}>进行中</option>
+        <option value="blocked" ${stVal==='blocked'?'selected':''}>卡住</option>
+        <option value="done" ${stVal==='done'?'selected':''}>已完成</option>
+        <option value="cancelled" ${stVal==='cancelled'?'selected':''}>已撤销</option>
+      </select></div>
       <div class="todo-edit-field"><label>关联项目（可不选，输入任意部分名称即可联想）</label><div class="proj-select-wrap">
         <input id="editTodoProjectInput" class="proj-select-input" value="${presetProj?esc(getProjectName(presetProj)):''}" placeholder="输入项目名搜索…" autocomplete="off">
         <input type="hidden" id="editTodoProject" value="${presetProj||''}">
@@ -2165,19 +2284,34 @@ function saveTodoModal(){
     if(q){const m=state.projects.find(p=>p.name.toLowerCase()===q);if(m)projectId=m.id;}
   }
 
+  const stVal=(document.getElementById('editTodoStatus')||{}).value||'auto';
+  // 应用状态：auto=按开始日期自动判定；其余为手动指定
+  const applyStatus=(t)=>{
+    if(stVal==='done'){t.done=true;t.completedAt=t.completedAt||Date.now();t.status='';}
+    else if(stVal==='ongoing'){t.done=false;t.completedAt=null;t.status='';}
+    else if(stVal==='blocked'||stVal==='cancelled'){t.done=false;t.completedAt=null;t.status=stVal;}
+    else {t.status='';}
+    t.autoByProject=false;
+  };
+
   if(editingTodoId){
     // Edit existing
     const t=state.todos.find(x=>x.id===editingTodoId);if(!t)return;
     t.title=title;t.priority=priority;t.deadline=deadline||null;
     t.startDate=startDate||null;
     t.projectId=projectId;t.updatedAt=Date.now();
+    applyStatus(t);
   }else{
     // Create new：开始日期未填则默认今天（立即进入待办）
-    state.todos.push({id:genId(),title,priority,deadline:deadline||todayStr(),
+    const nt={id:genId(),title,priority,deadline:deadline||todayStr(),
       startDate:startDate||todayStr(),
       done:false,createdAt:Date.now(),completedAt:null,updatedAt:Date.now(),
-      projectId,deferredCount:0,journal:[]});
+      projectId,deferredCount:0,journal:[],status:''};
+    applyStatus(nt);
+    state.todos.push(nt);
   }
+  // 若任务关联到「卡住/已撤销」的项目，项目状态优先
+  syncTodosFromProjects();
   save();renderAll();scheduleGistUpload();
   closeTodoModal();
 }
@@ -2188,9 +2322,25 @@ function toggleTodo(id){
   const t=state.todos.find(x=>x.id===id);if(!t)return;
   t.done=!t.done;
   t.completedAt=t.done?Date.now():null;
+  if(t.done&&t.status==='cancelled'){t.status='';t.autoByProject=false;} // 完成即解除撤销
   t.updatedAt=Date.now();
   save();renderAll();
   scheduleGistUpload();
+}
+// 手动切换任务状态：ongoing(进行中) / blocked(卡住) / cancelled(已撤销) / done(已完成)
+function setTodoStatus(id,st){
+  const t=state.todos.find(x=>x.id===id);if(!t)return;
+  if(st==='done'){t.done=true;t.completedAt=t.completedAt||Date.now();t.status='';}
+  else if(st==='ongoing'){t.done=false;t.completedAt=null;t.status='';}
+  else {t.done=false;t.completedAt=null;t.status=st;}
+  t.autoByProject=false; // 手动设置优先于项目传染
+  t.updatedAt=Date.now();
+  save();renderAll();
+  scheduleGistUpload();
+}
+function toggleTodoBlocked(id){
+  const t=state.todos.find(x=>x.id===id);if(!t)return;
+  setTodoStatus(id, todoStatus(t)==='blocked'?'ongoing':'blocked');
 }
 function deferTodo(id){
   const t=state.todos.find(x=>x.id===id);if(!t)return;
@@ -2367,7 +2517,18 @@ function toggleBlocked(id){
   const p=state.projects.find(x=>x.id===id);if(!p)return;
   p.blocked=!p.blocked;
   if(!p.blocked)p.blockedNote='';
+  if(p.blocked)p.cancelled=false;
   p.updatedAt=Date.now();
+  syncTodosFromProjects();
+  save();renderAll();
+  scheduleGistUpload();
+}
+function toggleProjectCancelled(id){
+  const p=state.projects.find(x=>x.id===id);if(!p)return;
+  p.cancelled=!p.cancelled;
+  if(p.cancelled)p.blocked=false;
+  p.updatedAt=Date.now();
+  syncTodosFromProjects();
   save();renderAll();
   scheduleGistUpload();
 }
