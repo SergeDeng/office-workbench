@@ -1073,8 +1073,8 @@ function renderSidebar(){
 function renderTopAlert(){
   const grid=document.getElementById('topAlertGrid');
   const priorityOrder={P0:0,P1:1,P2:2,P3:3};
-  // 逾期限「进行中/卡住」的任务：已撤销/已完成/未开启 不再提醒
-  const overdue=state.todos.filter(t=>isOpenTodo(t)&&t.deadline&&daysOverdue(t.deadline)>0);
+  // 逾期限「进行中」的任务：已撤销/已完成/未开启/卡住 不再提醒
+  const overdue=state.todos.filter(t=>isTodoTodayActive(t)&&t.deadline&&daysOverdue(t.deadline)>0);
   const stuck=state.projects.filter(p=>p.blocked&&!p.cancelled);
 
   if(overdue.length===0&&stuck.length===0){
@@ -1135,8 +1135,8 @@ function renderFocus(){
   const dateStr=`${now.getMonth()+1}月${now.getDate()}日 · 周${weekDays[now.getDay()]}`;
 
   // Compute stats
-  // 逾期统计：排除 已撤销 / 卡住 的任务（撤销的不算数，卡住的推不动、不占今日焦点）
-  const overdueTodos=state.todos.filter(t=>isOpenTodo(t)&&todoStatus(t)!=='blocked'&&t.deadline&&daysOverdue(t.deadline)>0);
+  // 逾期统计：仅「进行中」的逾期任务（未开启/卡住/已撤销/已完成 均不列入）
+  const overdueTodos=state.todos.filter(t=>isTodoTodayActive(t)&&t.deadline&&daysOverdue(t.deadline)>0);
   // 今日待办：仅「进行中」的任务（未开启 / 卡住 / 已撤销 / 已完成 均不进入）
   const todayTodos=state.todos.filter(t=>isTodoTodayActive(t));
   const stuckProjects=state.projects.filter(p=>p.blocked);
@@ -1336,7 +1336,7 @@ function renderTodos(){
   // ===== Filter tab counts =====
   // 今天：仅「进行中」的任务（未开启 / 卡住 / 已撤销 / 已完成 均不进入）
   const todayTodos=state.todos.filter(t=>isTodoTodayActive(t));
-  const overdueTodos=state.todos.filter(t=>isOpenTodo(t)&&t.deadline&&daysOverdue(t.deadline)>0);
+  const overdueTodos=state.todos.filter(t=>isTodoTodayActive(t)&&t.deadline&&daysOverdue(t.deadline)>0);
   const upcomingTodos=state.todos.filter(t=>isOpenTodo(t)&&taskStart(t)&&taskStart(t)>today);
   const blockedTodos=state.todos.filter(t=>todoStatus(t)==='blocked');
   const cancelledTodos=state.todos.filter(t=>todoStatus(t)==='cancelled');
@@ -1369,7 +1369,7 @@ function renderTodos(){
   let filtered=[];
   switch(state.todoFilter){
     case 'today': filtered=state.todos.filter(t=>isTodoTodayActive(t));break;
-    case 'overdue': filtered=state.todos.filter(t=>isOpenTodo(t)&&t.deadline&&daysOverdue(t.deadline)>0);break;
+    case 'overdue': filtered=state.todos.filter(t=>isTodoTodayActive(t)&&t.deadline&&daysOverdue(t.deadline)>0);break;
     case 'upcoming': filtered=state.todos.filter(t=>isOpenTodo(t)&&taskStart(t)&&taskStart(t)>today);break;
     case 'blocked': filtered=state.todos.filter(t=>todoStatus(t)==='blocked');break;
     case 'cancelled': filtered=state.todos.filter(t=>todoStatus(t)==='cancelled');break;
